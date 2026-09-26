@@ -45,10 +45,12 @@ export default function ProfilePage() {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
-      if (res.ok) {
-        setStatus("Profile saved successfully! Ready for discovery.");
-      } else {
+         const data = await res.json();
+   if (res.ok) {
+     localStorage.setItem("opportunity_radar_user_email", formData.email);
+     setStatus("Profile saved successfully! Ready for discovery.");
+   }
+else {
         setStatus(`Error: ${data.error || "Failed to save"}`);
       }
     } catch (err: any) {
