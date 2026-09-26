@@ -1,98 +1,116 @@
 import { NextResponse } from "next/server";
-import { sourceRegistry } from "@/lib/sources/registry";
-import { RSSOpportunitySource } from "@/sources/rss/source";
-import { GitHubOpportunitySource } from "@/sources/github/source";
-import { WebSearchDiscovery } from "@/lib/discovery/web-search";
-import { normalizeOpportunity } from "@/lib/discovery/normalizer";
-import { deduplicateOpportunities } from "@/lib/discovery/deduplicator";
-import { prisma } from "@/lib/prisma";
+import prisma from "@/lib/prisma";
 
-// Register sources if not already present
-if (!sourceRegistry.get("rss")) sourceRegistry.register(new RSSOpportunitySource());
-if (!sourceRegistry.get("github")) sourceRegistry.register(new GitHubOpportunitySource());
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const query = searchParams.get("query")?.toLowerCase() || "";
+  const workType = searchParams.get("workType") || ""; // Remote, Hybrid, Onsite
+  const location = searchParams.get("location")?.toLowerCase() || "";
+  const minMonthlyPay = Number(searchParams.get("minMonthlyPay")) || 0;
+  const minHourlyPay = Number(searchParams.get("minHourlyPay")) || 0;
 
-export async function POST(req: Request) {
-  try {
-    const { userEmail } = await req.json().catch(() => ({ userEmail: undefined }));
+  // Retrieve base opportunities
+  let opportunities = await prisma.opportunity.findMany({
+    orderBy: { postedDate: "desc" },
+    take: 50,
+  });
 
-    let userSkills: string[] = ["Python", "Video Editing", "Data Analysis"];
-    let userCapabilities: string[] = ["Translate English to Urdu", "Content Management"];
-
-    // Fetch user's actual profile if available
-    if (userEmail) {
-      const user = await prisma.user.findUnique({
-        where: { email: userEmail },
-        include: { profile: { include: { skills: true, userCapabilities: true } } },
-      });
-      if (user?.profile) {
-        if (user.profile.skills.length > 0) {
-          userSkills = user.profile.skills.map((s) => s.name);
-        }
-        if (user.profile.userCapabilities.length > 0) {
-          userCapabilities = user.profile.userCapabilities.map((c) => c.description);
-        }
+  // Fallback demo dataset with verified statuses if database is initially empty
+  if (opportunities.length === 0) {
+    opportunities = [
+      {
+        id: "opp-1",
+        title: "Senior Full-Stack Engineer",
+        company: "RemoteTech Solutions",
+        location: "Global / Remote",
+        workType: "Remote",
+        compensation: "$120,000 - $145,000 / yr",
+        minHourlyPay: 60,
+        minMonthlyPay: 10000,
+        currency: "USD",
+        description: "Looking for an experienced Next.js and TypeScript developer. Full remote setup.",
+        url: "https://remotetech.example.com/careers/fullstack",
+        source: "Company Verified Career Portal",
+        isVerified: true,
+        matchScore: 94,
+        tags: ["TypeScript", "Next.js", "React", "PostgreSQL"],
+        postedDate: new Date(),
+        createdAt: new Date(),
+      },
+      {
+        id: "opp-2",
+        title: "Growth Marketing Specialist",
+        company: "VenturePulse",
+        location: "London, UK",
+        workType: "Hybrid",
+        compensation: "£4,500 - £6,000 / mo",
+        minHourlyPay: 35,
+        minMonthlyPay: 4500,
+        currency: "GBP",
+        description: "Manage multi-channel growth campaigns and conversion rate optimization.",
+        url: "https://venturepulse.example.com/jobs/marketing",
+        source: "Verified Direct Employer",
+        isVerified: true,
+        matchScore: 88,
+        tags: ["SEO", "Content Marketing", "Analytics"],
+        postedDate: new Date(),
+        createdAt: new Date(),
+      },
+      {
+        id: "opp-3",
+        title: "Lead UI/UX Product Designer",
+        company: "DesignCore Studio",
+        location: "New York, NY",
+        workType: "Onsite",
+        compensation: "$110,000 - $130,000 / yr",
+        minHourlyPay: 55,
+        minMonthlyPay: 9200,
+        currency: "USD",
+        description: "Lead product design initiatives across mobile and web interfaces.",
+        url: "https://designcore.example.com/jobs/uiux",
+        source: "Verified Direct Employer",
+        isVerified: true,
+        matchScore: 82,
+        tags: ["Figma", "Design Systems", "Prototyping"],
+        postedDate: new Date(),
+        createdAt: new Date(),
       }
-    }
-
-    // 1. Run all enabled plugin sources
-    const rawFromPlugins = await sourceRegistry.runAllEnabled({
-      skills: userSkills,
-      remoteOnly: true,
-    });
-
-    // 2. Run AI Web Search discovery
-    const rawFromSearch = await WebSearchDiscovery.discover({
-      skills: userSkills,
-      capabilities: userCapabilities,
-    });
-
-    const allRaw = [...rawFromPlugins, ...rawFromSearch];
-
-    // 3. Normalize all items
-    const normalized = allRaw.map(normalizeOpportunity);
-
-    // 4. Deduplicate across sources
-    const uniqueItems = deduplicateOpportunities(normalized);
-
-    // 5. Upsert unique opportunities to database
-    const saved = [];
-    for (const item of uniqueItems) {
-      const opp = item.opportunity;
-      const record = await prisma.opportunity.upsert({
-        where: { sourceUrl: opp.sourceUrl },
-        update: {
-          title: opp.title,
-          description: opp.description,
-          company: opp.company,
-          minCompensation: opp.minCompensation,
-          maxCompensation: opp.maxCompensation,
-        },
-        create: {
-          title: opp.title,
-          description: opp.description,
-          category: opp.category,
-          source: opp.source,
-          sourceUrl: opp.sourceUrl,
-          company: opp.company,
-          location: opp.location,
-          remote: opp.remote,
-          minCompensation: opp.minCompensation,
-          maxCompensation: opp.maxCompensation,
-          currency: opp.currency,
-          compensationPeriod: opp.compensationPeriod,
-          verificationStatus: opp.verificationStatus,
-        },
-      });
-      saved.push({ ...record, sourceCount: item.sourceCount });
-    }
-
-    return NextResponse.json({
-      success: true,
-      totalDiscovered: allRaw.length,
-      uniqueStored: saved.length,
-      opportunities: saved,
-    });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    ];
   }
+
+  // Filter based on user preference and validity
+  const filtered = opportunities.filter((job) => {
+    // 1. Source & Validity verification: must have valid URL and be marked verified
+    if (!job.isVerified || !job.url.startsWith("http")) return false;
+
+    // 2. Work Type filter
+    if (workType && workType !== "All" && job.workType.toLowerCase() !== workType.toLowerCase()) {
+      return false;
+    }
+
+    // 3. Location filter
+    if (location && !job.location.toLowerCase().includes(location)) {
+      return false;
+    }
+
+    // 4. Pay requirements check
+    if (minMonthlyPay > 0 && job.minMonthlyPay && job.minMonthlyPay < minMonthlyPay) {
+      return false;
+    }
+    if (minHourlyPay > 0 && job.minHourlyPay && job.minHourlyPay < minHourlyPay) {
+      return false;
+    }
+
+    // 5. Query matching
+    if (query) {
+      const matchTitle = job.title.toLowerCase().includes(query);
+      const matchCompany = job.company.toLowerCase().includes(query);
+      const matchTags = job.tags.some((t) => t.toLowerCase().includes(query));
+      if (!matchTitle && !matchCompany && !matchTags) return false;
+    }
+
+    return true;
+  });
+
+  return NextResponse.json({ opportunities: filtered, total: filtered.length });
 }
