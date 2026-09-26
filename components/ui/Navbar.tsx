@@ -7,7 +7,6 @@ import { usePathname } from "next/navigation";
 export function Navbar() {
   const pathname = usePathname();
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const email = localStorage.getItem("opportunity_radar_user_email");
@@ -16,132 +15,92 @@ export function Navbar() {
 
   const handleLogout = () => {
     localStorage.removeItem("opportunity_radar_user_email");
+    localStorage.removeItem("opportunity_radar_user_name");
     setUserEmail(null);
     window.location.href = "/";
   };
 
-  const navLinks = [
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Discover", href: "/discover" },
-    { label: "Saved", href: "/saved" },
-    { label: "Profile", href: "/profile" },
-    { label: "Settings", href: "/settings" },
-  ];
-
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2 font-extrabold text-base sm:text-lg text-indigo-600 hover:text-indigo-700">
           <span>Opportunity Radar 🚀</span>
         </Link>
 
         {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-600">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`hover:text-indigo-600 transition ${
-                pathname === link.href ? "text-indigo-600 font-bold" : ""
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
+          <Link
+            href="/discover"
+            className={`hover:text-indigo-600 transition ${
+              pathname === "/discover" ? "text-indigo-600 font-bold" : ""
+            }`}
+          >
+            Discover
+          </Link>
+          <Link
+            href="/dashboard"
+            className={`hover:text-indigo-600 transition ${
+              pathname === "/dashboard" ? "text-indigo-600 font-bold" : ""
+            }`}
+          >
+            Radar Dashboard
+          </Link>
+          <Link
+            href="/saved"
+            className={`hover:text-indigo-600 transition ${
+              pathname === "/saved" ? "text-indigo-600 font-bold" : ""
+            }`}
+          >
+            Saved
+          </Link>
         </nav>
 
-        {/* Desktop Action & Auth Buttons */}
-        <div className="hidden md:flex items-center gap-3">
+        {/* Action Buttons & Auth */}
+        <div className="flex items-center gap-2.5">
           <Link
-            href="/profile/cv-upload"
+            href="/signup"
             className="px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 rounded-lg text-xs font-bold transition flex items-center gap-1.5"
           >
             <span>📄</span>
-            <span>Upload Resume</span>
+            <span className="hidden sm:inline">Upload Resume / CV</span>
+            <span className="sm:hidden">Resume</span>
           </Link>
 
           {userEmail ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs bg-slate-100 text-slate-700 font-medium px-2.5 py-1 rounded-full border border-slate-200 truncate max-w-[160px]">
+              <Link
+                href="/profile"
+                className="text-xs bg-slate-100 text-slate-700 font-medium px-2.5 py-1 rounded-full border border-slate-200 truncate max-w-[120px] sm:max-w-[160px]"
+                title={userEmail}
+              >
                 {userEmail}
-              </span>
+              </Link>
               <button
                 onClick={handleLogout}
-                className="text-xs text-red-600 hover:text-red-700 font-bold px-2 py-1"
+                className="text-xs text-red-600 hover:text-red-700 font-bold px-1.5 py-1"
               >
                 Log Out
               </button>
             </div>
           ) : (
-            <Link
-              href="/login"
-              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition"
-            >
-              Log In
-            </Link>
-          )}
-        </div>
-
-        {/* Mobile Header Buttons */}
-        <div className="flex md:hidden items-center gap-2">
-          <Link
-            href="/profile/cv-upload"
-            className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs font-bold border border-indigo-200"
-          >
-            📄 Resume
-          </Link>
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-slate-600 hover:text-slate-900 rounded-md text-lg focus:outline-none"
-          >
-            {mobileMenuOpen ? "✕" : "☰"}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Drawer */}
-      {mobileMenuOpen && (
-        <div className="md:hidden border-t border-slate-200 bg-white px-4 py-4 space-y-3 shadow-lg">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={() => setMobileMenuOpen(false)}
-              className="block text-sm font-semibold text-slate-700 py-1.5"
-            >
-              {link.label}
-            </Link>
-          ))}
-          <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
-            <Link
-              href="/profile/cv-upload"
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-center py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg text-xs font-bold"
-            >
-              📄 Upload Resume / CV
-            </Link>
-            {userEmail ? (
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-xs text-slate-500 truncate">{userEmail}</span>
-                <button
-                  onClick={handleLogout}
-                  className="text-xs text-red-600 font-bold"
-                >
-                  Log Out
-                </button>
-              </div>
-            ) : (
+            <div className="flex items-center gap-2">
               <Link
                 href="/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-center py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold"
+                className="px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 transition"
               >
                 Log In
               </Link>
-            )}
-          </div>
+              <Link
+                href="/signup"
+                className="hidden sm:inline-block px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition"
+              >
+                Get Started
+              </Link>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </header>
   );
 }
