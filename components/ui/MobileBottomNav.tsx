@@ -5,10 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Compass, Target, Bookmark, User } from "lucide-react";
 
-export default function MobileBottomNav() {
+export function MobileBottomNav() {
   const pathname = usePathname();
 
-  // 5 essential tabs (Alerts is now integrated into Profile)
+  // 5 essential navigation tabs (Alerts is integrated into Profile)
   const navItems = [
     { label: "Home", href: "/", icon: Home },
     { label: "Discover", href: "/discover", icon: Compass },
@@ -49,3 +49,5 @@ export default function MobileBottomNav() {
     </nav>
   );
 }
+
+export default MobileBottomNav;
