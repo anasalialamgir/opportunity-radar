@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import React from "react";
+import { evaluateOpportunitySafety } from "@/lib/security/safety";
 
 export interface CardOpportunityProps {
   id: string;
   title: string;
+  description?: string;
   company?: string;
   category: string;
   remote: boolean;
@@ -23,6 +25,7 @@ export interface CardOpportunityProps {
 export function OpportunityCard({
   id,
   title,
+  description = "",
   company,
   category,
   remote,
@@ -42,6 +45,9 @@ export function OpportunityCard({
       : minCompensation
       ? `From $${minCompensation}`
       : "Flexible / Unstated";
+
+  // Evaluate safety and scam risks in real-time
+  const safety = evaluateOpportunitySafety(title, description);
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between">
@@ -67,6 +73,15 @@ export function OpportunityCard({
             {matchScore}% match
           </span>
         </div>
+
+        {/* Safety Warnings if detected */}
+        {safety.warnings.length > 0 && (
+          <div className="mt-3 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+            {safety.warnings.map((w, idx) => (
+              <p key={idx} className="font-medium">{w}</p>
+            ))}
+          </div>
+        )}
 
         {/* Badges: Remote & Compensation */}
         <div className="flex items-center gap-2 mt-3 text-xs">
