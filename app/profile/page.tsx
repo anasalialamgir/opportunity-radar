@@ -1,0 +1,218 @@
+"use client";
+
+import { useState } from "react";
+
+export default function ProfilePage() {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    country: "",
+    timeZone: "",
+    locationPreference: "remote",
+    hoursPerWeek: "20",
+    targetMonthlyIncome: "1000",
+    minimumCompensation: "100",
+    currency: "USD",
+    employmentPreferences: ["Freelance", "Contract"],
+    languages: "English",
+    skills: "Communication, Problem Solving",
+    capabilities: "I can edit videos, I can manage social media accounts",
+  });
+
+  const [status, setStatus] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setStatus(null);
+
+    try {
+      const payload = {
+        ...formData,
+        languages: formData.languages.split(",").map((s) => s.trim()),
+        skills: formData.skills.split(",").map((s) => s.trim()),
+        capabilities: formData.capabilities.split(",").map((s) => s.trim()),
+      };
+
+      const res = await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setStatus("Profile saved successfully! Ready for discovery.");
+      } else {
+        setStatus(`Error: ${data.error || "Failed to save"}`);
+      }
+    } catch (err: any) {
+      setStatus(`Error: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm">
+      <h2 className="text-2xl font-bold text-slate-900">Step 1 — Create Profile</h2>
+      <p className="text-sm text-slate-600 mt-1 mb-6">
+        Tell the radar about your background, preferences, and goals.
+      </p>
+
+      {status && (
+        <div className={`p-4 rounded-lg text-sm mb-6 ${status.startsWith("Error") ? "bg-red-50 text-red-700 border border-red-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
+          {status}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Name</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="e.g. Alex"
+              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-indigo-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Email</label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="user@example.com"
+              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-indigo-500"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Country</label>
+            <input
+              type="text"
+              name="country"
+              value={formData.country}
+              onChange={handleChange}
+              placeholder="e.g. Pakistan, United States"
+              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Location Preference</label>
+            <select
+              name="locationPreference"
+              value={formData.locationPreference}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-indigo-500"
+            >
+              <option value="remote">Remote</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="local">Local</option>
+              <option value="any">Any</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Hours / Week</label>
+            <input
+              type="number"
+              name="hoursPerWeek"
+              value={formData.hoursPerWeek}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Target Monthly ($)</label>
+            <input
+              type="number"
+              name="targetMonthlyIncome"
+              value={formData.targetMonthlyIncome}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Min Acceptable ($)</label>
+            <input
+              type="number"
+              name="minimumCompensation"
+              value={formData.minimumCompensation}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-indigo-500"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Languages (comma-separated)</label>
+          <input
+            type="text"
+            name="languages"
+            value={formData.languages}
+            onChange={handleChange}
+            placeholder="e.g. English, Urdu"
+            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-indigo-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Primary Skills (comma-separated)</label>
+          <input
+            type="text"
+            name="skills"
+            value={formData.skills}
+            onChange={handleChange}
+            placeholder="e.g. Python, Excel, Research, Design"
+            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-indigo-500"
+          />
+        </div>
+
+        <div className="bg-indigo-50/60 p-4 rounded-lg border border-indigo-100">
+          <label className="block text-sm font-semibold text-indigo-950 mb-1">
+            What else can you do that isn't on your CV?
+          </label>
+          <p className="text-xs text-indigo-700 mb-2">
+            Add practical capabilities (e.g. "I can translate Urdu/English, I can edit short-form videos, I understand car repairs").
+          </p>
+          <textarea
+            name="capabilities"
+            value={formData.capabilities}
+            onChange={handleChange}
+            rows={3}
+            className="w-full px-3 py-2 border border-indigo-200 bg-white rounded-md text-sm focus:outline-indigo-500"
+            placeholder="Type your skills and capabilities separated by commas..."
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow transition disabled:opacity-50"
+        >
+          {loading ? "Saving Profile..." : "Save Profile"}
+        </button>
+      </form>
+    </div>
+  );
+}
