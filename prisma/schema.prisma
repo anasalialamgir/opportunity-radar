@@ -7,10 +7,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// -------------------------------------------------------------
-// Authentication Models (NextAuth Compatible)
-// -------------------------------------------------------------
-
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -38,6 +34,21 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model User {
+  id            String       @id @default(cuid())
+  name          String?
+  email         String?      @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  accounts      Account[]
+  sessions      Session[]
+  profile       UserProfile?
+  savedOpportunities SavedOpportunity[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
 model VerificationToken {
   identifier String
   token      String   @unique
@@ -46,184 +57,72 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  accounts           Account[]
-  sessions           Session[]
-  profile            Profile?
-  savedOpportunities SavedOpportunity[]
-  applications       Application[]
-  matches            OpportunityMatch[]
-  notifications      Notification[]
-}
-
-// -------------------------------------------------------------
-// User Profile & Capability Models
-// -------------------------------------------------------------
-
-model Profile {
+model UserProfile {
   id                      String   @id @default(cuid())
   userId                  String   @unique
-  country                 String?
-  timeZone                String?
-  locationPreference      String?  // remote, hybrid, local, any
-  hoursPerWeek            Int?     @default(40)
-  targetMonthlyIncome     Float?
-  minimumCompensation     Float?
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // ApplyBlast-style Target Preferences
+  targetRoles             String[] @default([])
+  seniorityLevel          String   @default("Mid-level") // Entry, Mid-level, Senior, Lead
+  workModel               String   @default("Remote")    // Remote, Hybrid, Onsite, Any
+  preferredLocations      String[] @default([])
+  openToRelocate          Boolean  @default(false)
+  
+  // Compensation Requirements
   currency                String   @default("USD")
-  employmentPreferences   String[] // Full-time, Part-time, Freelance, Contract, Gig, Business
-  languages               String[]
+  minHourlyPay            Float?   @default(0)
+  minMonthlyPay           Float?   @default(0)
+  
+  // Skills & Experience
+  skills                  String[] @default([])
   rawCvText               String?  @db.Text
+  cvFileName              String?
+  
+  // Alert Mechanism (Integrated directly into Profile)
+  emailAlertsEnabled      Boolean  @default(true)
+  alertFrequency          String   @default("instant")   // instant, daily, weekly
+  smsAlertsEnabled        Boolean  @default(false)
+  phoneNumber             String?
+  carrierGatewayDomain    String?  // e.g., txt.att.net, vtext.com, or custom gateway
+  
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
-
-  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  skills           Skill[]
-  experiences      Experience[]
-  education        Education[]
-  certifications   Certification[]
-  userCapabilities UserCapability[]
 }
-
-model Skill {
-  id        String   @id @default(cuid())
-  profileId String
-  name      String
-  category  String?  // technical, soft, domain
-  years     Float?
-
-  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-}
-
-model Experience {
-  id          String   @id @default(cuid())
-  profileId   String
-  title       String
-  company     String?
-  years       Float?
-  summary     String?  @db.Text
-
-  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-}
-
-model Education {
-  id          String   @id @default(cuid())
-  profileId   String
-  degree      String
-  institution String
-  year        Int?
-
-  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-}
-
-model Certification {
-  id        String   @id @default(cuid())
-  profileId String
-  name      String
-  issuer    String?
-  year      Int?
-
-  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-}
-
-model UserCapability {
-  id          String   @id @default(cuid())
-  profileId   String
-  description String   // e.g. "I can translate Urdu/English", "I understand car maintenance"
-  createdAt   DateTime @default(now())
-
-  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-}
-
-// -------------------------------------------------------------
-// Opportunity Discovery & Matching Models
-// -------------------------------------------------------------
 
 model Opportunity {
-  id                 String    @id @default(cuid())
-  title              String
-  description        String    @db.Text
-  category           String    // job, freelance, contract, gig, business, grant, competition, research, open_source, creator, other
-  source             String    // reddit, github, rss, web-search
-  sourceUrl          String    @unique
-  company            String?
-  location           String?
-  remote             Boolean   @default(false)
-  minCompensation    Float?
-  maxCompensation    Float?
-  currency           String?
-  compensationPeriod String?   // hourly, fixed, monthly, yearly
-  requirements       String[]
-  skills             String[]
-  publishedAt        DateTime?
-  deadline           DateTime?
-  discoveredAt       DateTime  @default(now())
-  verificationStatus String    @default("unverified") // unverified, source_confirmed, verified
-  rawData            Json?
-
-  matches            OpportunityMatch[]
-  savedOpportunities SavedOpportunity[]
-  applications       Application[]
-}
-
-model OpportunityMatch {
-  id             String   @id @default(cuid())
-  userId         String
-  opportunityId  String
-  matchScore     Int      // 0 - 100
-  reasons        String[] // Bullet points explaining why it matches
-  concerns       String[] // Missing skills or requirements
-  createdAt      DateTime @default(now())
-
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, opportunityId])
+  id             String    @id @default(cuid())
+  title          String
+  company        String
+  location       String
+  workType       String    // Remote, Hybrid, Onsite
+  compensation   String?
+  minHourlyPay   Float?
+  minMonthlyPay  Float?
+  currency       String?   @default("USD")
+  description    String    @db.Text
+  url            String
+  source         String
+  isVerified     Boolean   @default(true)
+  matchScore     Int?      @default(0)
+  tags           String[]  @default([])
+  postedDate     DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  
+  savedBy        SavedOpportunity[]
 }
 
 model SavedOpportunity {
-  id            String   @id @default(cuid())
-  userId        String
-  opportunityId String
-  savedAt       DateTime @default(now())
-  dismissed     Boolean  @default(false)
+  id             String      @id @default(cuid())
+  userId         String
+  opportunityId  String
+  status         String      @default("SAVED") // SAVED, APPLIED, INTERVIEW, OFFER, REJECTED
+  notes          String?     @db.Text
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, opportunityId])
-}
-
-model Application {
-  id            String   @id @default(cuid())
-  userId        String
-  opportunityId String
-  status        String   @default("Preparing") // Discovered, Saved, Preparing, Applied, Interview, Offer, Rejected, Closed
-  notes         String?  @db.Text
-  appliedAt     DateTime?
-  updatedAt     DateTime @updatedAt
-
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  opportunity    Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   @@unique([userId, opportunityId])
-}
-
-model Notification {
-  id        String   @id @default(cuid())
-  userId    String
-  title     String
-  content   String   @db.Text
-  channel   String   // email, telegram
-  sentAt    DateTime @default(now())
-  read      Boolean  @default(false)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
