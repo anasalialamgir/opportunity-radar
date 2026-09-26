@@ -42,10 +42,6 @@ export async function dispatchOpportunityAlert(payload: AlertPayload) {
   }
 
   // 2. Deliver Free Carrier SMS (Zero Cost Open-Source Solution)
-  if (    }
-  }
-
-  // 2. Deliver Free Carrier SMS (Zero Cost Open-Source Solution)
   if (payload.smsConfig?.phoneNumber && payload.smsConfig?.gatewayDomain) {
     const cleanNumber = payload.smsConfig.phoneNumber.replace(/\D/g, "");
     const smsEmailRecipient = `${cleanNumber}@${payload.smsConfig.gatewayDomain}`;
