@@ -1,69 +1,87 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Radar, FileText, LogOut, Bell } from "lucide-react";
+import { useSession, signOut } from "next-auth/react";
+import { Target, Compass, Bookmark, User, LogOut, LogIn, Upload } from "lucide-react";
 
-export function Navbar() {
+export default function Navbar() {
   const pathname = usePathname();
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const { data: session } = useSession();
 
-  useEffect(() => {
-    setUserEmail(localStorage.getItem("opportunity_radar_user_email"));
-  }, [pathname]);
-
-  const handleLogout = () => {
-    localStorage.removeItem("opportunity_radar_user_email");
-    localStorage.removeItem("opportunity_radar_user_name");
-    setUserEmail(null);
-    window.location.href = "/";
-  };
+  const links = [
+    { label: "Discover", href: "/discover", icon: Compass },
+    { label: "Radar", href: "/dashboard", icon: Target },
+    { label: "Saved", href: "/saved", icon: Bookmark },
+    { label: "Profile", href: "/profile", icon: User },
+  ];
 
   return (
-    <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+    <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-slate-200/80">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2 font-bold text-slate-900 tracking-tight hover:opacity-80 transition">
-          <Radar className="w-5 h-5 text-indigo-600 stroke-[2]" />
-          <span>Opportunity Radar</span>
+        <Link href="/" className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-sm shadow-indigo-500/20">
+            <Target className="w-5 h-5 animate-pulse" />
+          </div>
+          <span className="font-extrabold text-lg text-slate-900 tracking-tight">
+            Opportunity <span className="text-indigo-600">Radar</span>
+          </span>
         </Link>
 
-        {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-500">
-          <Link href="/discover" className={`hover:text-slate-900 transition ${pathname === "/discover" ? "text-slate-900 font-semibold" : ""}`}>Discover</Link>
-          <Link href="/dashboard" className={`hover:text-slate-900 transition ${pathname === "/dashboard" ? "text-slate-900 font-semibold" : ""}`}>Dashboard</Link>
-          <Link href="/alerts" className={`hover:text-slate-900 transition ${pathname === "/alerts" ? "text-slate-900 font-semibold" : ""}`}>Alerts</Link>
-          <Link href="/saved" className={`hover:text-slate-900 transition ${pathname === "/saved" ? "text-slate-900 font-semibold" : ""}`}>Saved</Link>
+        {/* Desktop Nav */}
+        <nav className="hidden md:flex items-center gap-1">
+          {links.map((link) => {
+            const isActive = pathname === link.href;
+            return (
+              <Link
+                key={link.label}
+                href={link.href}
+                className={`px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-indigo-50 text-indigo-700"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                }`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </nav>
 
-        {/* Action Buttons & Auth */}
-        <div className="flex items-center gap-3">
-          {userEmail ? (
-            <div className="flex items-center gap-3">
+        {/* Auth State Actions */}
+        <div className="flex items-center gap-2">
+          {session ? (
+            <div className="flex items-center gap-2">
               <Link
                 href="/profile"
-                className="hidden sm:block text-xs text-slate-500 font-medium px-2 py-1 rounded-md border border-transparent hover:border-slate-200 truncate max-w-[150px] transition"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50"
               >
-                {userEmail}
+                <User className="w-3.5 h-3.5 text-indigo-600" />
+                <span>{session.user?.name || session.user?.email?.split("@")[0]}</span>
               </Link>
               <button
-                onClick={handleLogout}
-                className="text-slate-400 hover:text-red-500 transition flex items-center gap-1"
+                onClick={() => signOut({ callbackUrl: "/" })}
+                className="p-2 text-slate-400 hover:text-red-600 rounded-xl hover:bg-slate-50 transition-colors"
                 title="Log Out"
               >
-                <LogOut className="w-4 h-4 stroke-[2]" />
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              <Link href="/login" className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition">
+            <div className="flex items-center gap-2">
+              <Link
+                href="/login"
+                className="text-xs font-semibold text-slate-700 hover:text-slate-900 px-3 py-2 rounded-xl"
+              >
                 Log In
               </Link>
-              <Link href="/signup" className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-xs font-semibold shadow-sm transition">
-                <FileText className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Upload CV</span>
-                <span className="sm:hidden">Start</span>
+              <Link
+                href="/signup"
+                className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-3.5 py-2 rounded-xl shadow-sm"
+              >
+                <Upload className="w-3.5 h-3.5 text-indigo-400" /> Upload CV
               </Link>
             </div>
           )}
