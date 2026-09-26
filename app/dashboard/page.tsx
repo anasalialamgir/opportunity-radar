@@ -1,18 +1,20 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { OpportunityCard } from "@/components/opportunities/OpportunityCard";
 
 interface OpportunityItem {
   id: string;
   title: string;
+  description?: string;
   company: string;
   category: string;
   remote: boolean;
   minCompensation?: number;
   maxCompensation?: number;
   source: string;
+  sourceUrl?: string;
   matchScore: number;
   reasons: string[];
 }
@@ -22,121 +24,112 @@ export default function DashboardPage() {
   const [selectedFilter, setSelectedFilter] = useState<"all" | "high_match" | "remote" | "freelance" | "contract">("all");
   const [sortBy, setSortBy] = useState<"match" | "compensation" | "title">("match");
   const [discovering, setDiscovering] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState<string>("");
   const [notification, setNotification] = useState<{ message: string; type: "success" | "info" } | null>(null);
+  const [opportunities, setOpportunities] = useState<OpportunityItem[]>([]);
 
-  const [opportunities, setOpportunities] = useState<OpportunityItem[]>([
-    {
-      id: "demo-opp-1",
-      title: "Short-Form Video & Tutorial Editor",
-      company: "EduMedia Creators",
-      category: "freelance",
-      remote: true,
-      minCompensation: 150,
-      maxCompensation: 300,
-      source: "Reddit",
-      matchScore: 94,
-      reasons: [
-        "✓ Video editing matches capability",
-        "✓ Remote fits preference",
-        "✓ Budget within target",
-      ],
-    },
-    {
-      id: "demo-opp-2",
-      title: "Python Data Pipeline & Automation",
-      company: "OpenCore Foundation",
-      category: "contract",
-      remote: true,
-      minCompensation: 500,
-      maxCompensation: 1000,
-      source: "GitHub",
-      matchScore: 91,
-      reasons: [
-        "✓ Python automation matches skills",
-        "✓ Meets hourly threshold",
-        "✓ Verified client",
-      ],
-    },
-    {
-      id: "demo-opp-3",
-      title: "Data Analysis & Spreadsheet Modeler",
-      company: "FinTech Ventures",
-      category: "freelance",
-      remote: true,
-      minCompensation: 800,
-      maxCompensation: 1200,
-      source: "RSS / Tech Feeds",
-      matchScore: 87,
-      reasons: [
-        "✓ Excel & Data analysis required",
-        "✓ Flexible milestone delivery",
-      ],
-    },
-    {
-      id: "demo-opp-4",
-      title: "Bilingual English/Urdu Content Specialist",
-      company: "Localization Global",
-      category: "freelance",
-      remote: true,
-      minCompensation: 400,
-      maxCompensation: 700,
-      source: "AI Web Search",
-      matchScore: 96,
-      reasons: [
-        "✓ Direct language capability match",
-        "✓ Fully remote milestone contract",
-      ],
-    },
-  ]);
+  // Load saved user email from localStorage on mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("opportunity_radar_user_email") || "";
+    setUserEmail(savedEmail);
+    fetchLiveOpportunities(savedEmail);
+  }, []);
 
-  const [savedCount, setSavedCount] = useState(12);
-  const [appliedCount, setAppliedCount] = useState(3);
+  const fetchLiveOpportunities = async (email?: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/opportunities${email ? `?email=${encodeURIComponent(email)}` : ""}`);
+      const data = await res.json();
+      if (data.opportunities && data.opportunities.length > 0) {
+        setOpportunities(data.opportunities);
+      } else {
+        setOpportunities([]);
+      }
+    } catch (err) {
+      console.error("Failed to load opportunities:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleScan = async () => {
     setDiscovering(true);
     setNotification({
-      message: "Radar is scanning active connectors (Web Search, RSS, GitHub, Reddit)...",
+      message: "Radar is scanning live sources (Web Search, RSS, GitHub)...",
       type: "info",
     });
 
     try {
-      const res = await fetch("/api/discover", { method: "POST" });
+      const res = await fetch("/api/discover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userEmail }),
+      });
       const data = await res.json();
+
       if (data.opportunities && data.opportunities.length > 0) {
+        // If user has a profile, calculate match scores
+        if (userEmail) {
+          await fetch("/api/match", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userEmail }),
+          });
+        }
+
+        await fetchLiveOpportunities(userEmail);
+
         setNotification({
-          message: `Scan complete! Discovered ${data.opportunities.length} opportunities across all sources.`,
+          message: `Scan complete! Discovered ${data.totalDiscovered || data.opportunities.length} opportunities.`,
           type: "success",
         });
       } else {
         setNotification({
-          message: "Scan complete. All opportunity feeds are currently up to date.",
+          message: "Scan complete. All active feeds are currently up to date.",
           type: "success",
         });
       }
     } catch {
       setNotification({
-        message: "Live demo scan complete. Discovered latest opportunities.",
-        type: "success",
+        message: "Scan completed with existing cached listings.",
+        type: "info",
       });
     } finally {
       setDiscovering(false);
     }
   };
 
-  const handleAction = (id: string, actionName: string) => {
-    if (actionName === "dismiss") {
-      setOpportunities((prev) => prev.filter((o) => o.id !== id));
-      setNotification({ message: "Opportunity dismissed.", type: "info" });
-    } else if (actionName === "save") {
-      setSavedCount((c) => c + 1);
-      setNotification({ message: "Saved to your tracking pipeline.", type: "success" });
-    } else if (actionName === "applied") {
-      setAppliedCount((c) => c + 1);
-      setNotification({ message: "Marked as Applied.", type: "success" });
+  const handleAction = async (id: string, actionName: string) => {
+    if (!userEmail) {
+      setNotification({
+        message: "Please create your profile first so your actions can be saved.",
+        type: "info",
+      });
+      return;
+    }
+
+    try {
+      await fetch("/api/opportunities/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ opportunityId: id, userEmail, action: actionName }),
+      });
+
+      if (actionName === "dismiss") {
+        setOpportunities((prev) => prev.filter((o) => o.id !== id));
+        setNotification({ message: "Opportunity dismissed.", type: "info" });
+      } else if (actionName === "save") {
+        setNotification({ message: "Saved to your pipeline.", type: "success" });
+      } else if (actionName === "applied") {
+        setNotification({ message: "Marked as Applied.", type: "success" });
+      }
+    } catch (err: any) {
+      setNotification({ message: `Error: ${err.message}`, type: "info" });
     }
   };
 
-  // Instant filter and sorting calculation
+  // Instant filter and sorting
   const filteredOpportunities = useMemo(() => {
     return opportunities
       .filter((opp) => {
@@ -150,8 +143,8 @@ export default function DashboardPage() {
 
         if (selectedFilter === "high_match") return opp.matchScore >= 90;
         if (selectedFilter === "remote") return opp.remote;
-        if (selectedFilter === "freelance") return opp.category.toLowerCase() === "freelance";
-        if (selectedFilter === "contract") return opp.category.toLowerCase() === "contract";
+        if (selectedFilter === "freelance") return opp.category?.toLowerCase() === "freelance";
+        if (selectedFilter === "contract") return opp.category?.toLowerCase() === "contract";
 
         return true;
       })
@@ -176,7 +169,7 @@ export default function DashboardPage() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            Radar Engine Active • 4 Connectors Connected
+            {userEmail ? `Connected as ${userEmail}` : "Radar Engine Ready"}
           </div>
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">
             Opportunity Radar <span className="text-indigo-600">Overview</span>
@@ -191,21 +184,20 @@ export default function DashboardPage() {
             href="/profile"
             className="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition"
           >
-            Edit Profile
+            {userEmail ? "Edit Profile" : "Create Profile"}
           </Link>
           <Link
-            href="/settings"
+            href="/profile/cv-upload"
             className="px-3.5 py-2 text-xs sm:text-sm font-semibold text-indigo-600 bg-indigo-50/70 border border-indigo-200/70 rounded-lg hover:bg-indigo-100 transition"
           >
-            Sources Settings
+            Upload CV
           </Link>
         </div>
       </div>
 
       {/* KPI Metrics Dashboard Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
-        {/* Strong Matches */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">
               Strong Matches
@@ -222,11 +214,10 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Total Discovered */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">
-              Discovered
+              Total in DB
             </span>
             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
               Live
@@ -234,64 +225,59 @@ export default function DashboardPage() {
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-extrabold text-emerald-600 tracking-tight">
-              24
+              {opportunities.length}
             </span>
-            <span className="text-xs text-slate-500 font-medium">in last 24h</span>
+            <span className="text-xs text-slate-500 font-medium">listings</span>
           </div>
         </div>
 
-        {/* Saved */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">
-              Saved Pipeline
+              Saved
             </span>
             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
-              Review
+              Pipeline
             </span>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              {savedCount}
-            </span>
-            <span className="text-xs text-slate-500 font-medium">ready to draft</span>
+            <Link href="/saved" className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight hover:text-indigo-600">
+              View →
+            </Link>
           </div>
         </div>
 
-        {/* Applied */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-500">
-              Applications
+              Radar Scan
             </span>
             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-              Active
+              Action
             </span>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-extrabold text-amber-600 tracking-tight">
-              {appliedCount}
-            </span>
-            <span className="text-xs text-slate-500 font-medium">responses awaited</span>
+            <button
+              onClick={handleScan}
+              disabled={discovering}
+              className="text-xs sm:text-sm font-bold text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
+            >
+              {discovering ? "Scanning..." : "Trigger Scan ↻"}
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Search, Filter & Trigger Scan Bar */}
+      {/* Search & Scan Bar */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-3.5 sm:p-4 space-y-3.5">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
           <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by skill, title, keyword (e.g. Python, Video, Remote, Data)..."
-              className="w-full pl-9 pr-8 py-2.5 sm:py-3 border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50/50"
+              placeholder="Search live database by skill, title, keyword (e.g. Python, Video, Remote, Support)..."
+              className="w-full px-3.5 py-2.5 sm:py-3 border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50"
             />
             {query && (
               <button
@@ -308,23 +294,11 @@ export default function DashboardPage() {
             disabled={discovering}
             className="w-full sm:w-auto px-5 py-2.5 sm:py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold rounded-xl text-xs sm:text-sm shadow-sm transition disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap"
           >
-            {discovering ? (
-              <>
-                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                </svg>
-                <span>Scanning 4 Feeds...</span>
-              </>
-            ) : (
-              <>
-                <span>🚀 Run Radar Scan</span>
-              </>
-            )}
+            {discovering ? "Scanning Feeds..." : "🚀 Run Live Radar Scan"}
           </button>
         </div>
 
-        {/* Filter Pills and Sort Controls */}
+        {/* Filters */}
         <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-slate-100">
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">
@@ -333,9 +307,7 @@ export default function DashboardPage() {
             <button
               onClick={() => setSelectedFilter("all")}
               className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-                selectedFilter === "all"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                selectedFilter === "all" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
               All
@@ -343,9 +315,7 @@ export default function DashboardPage() {
             <button
               onClick={() => setSelectedFilter("high_match")}
               className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-                selectedFilter === "high_match"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                selectedFilter === "high_match" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
               🔥 90%+ Match
@@ -353,32 +323,10 @@ export default function DashboardPage() {
             <button
               onClick={() => setSelectedFilter("remote")}
               className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-                selectedFilter === "remote"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                selectedFilter === "remote" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
               🌐 Remote
-            </button>
-            <button
-              onClick={() => setSelectedFilter("freelance")}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-                selectedFilter === "freelance"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              Freelance
-            </button>
-            <button
-              onClick={() => setSelectedFilter("contract")}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
-                selectedFilter === "contract"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              Contract
             </button>
           </div>
 
@@ -389,10 +337,10 @@ export default function DashboardPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+              className="bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg px-2.5 py-1 focus:outline-none"
             >
               <option value="match">Highest Match</option>
-              <option value="compensation">Highest Compensation</option>
+              <option value="compensation">Highest Pay</option>
               <option value="title">Title (A-Z)</option>
             </select>
           </div>
@@ -408,14 +356,8 @@ export default function DashboardPage() {
               : "bg-indigo-50 text-indigo-800 border-indigo-200"
           }`}
         >
-          <div className="flex items-center gap-2">
-            <span>{notification.type === "success" ? "✓" : "ℹ"}</span>
-            <span>{notification.message}</span>
-          </div>
-          <button
-            onClick={() => setNotification(null)}
-            className="text-slate-400 hover:text-slate-600 font-bold text-base leading-none"
-          >
+          <span>{notification.message}</span>
+          <button onClick={() => setNotification(null)} className="text-slate-400 hover:text-slate-600 font-bold text-base">
             ×
           </button>
         </div>
@@ -426,40 +368,33 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-              Matched Opportunities
+              Live Database Opportunities
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Showing {filteredOpportunities.length} opportunities matching your criteria
+              {loading
+                ? "Connecting to database..."
+                : `Showing ${filteredOpportunities.length} opportunities from your database`}
             </p>
           </div>
-          {selectedFilter !== "all" && (
-            <button
-              onClick={() => {
-                setSelectedFilter("all");
-                setQuery("");
-              }}
-              className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold"
-            >
-              Reset Filters
-            </button>
-          )}
         </div>
 
-        {filteredOpportunities.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 sm:p-12 text-center space-y-3">
-            <div className="text-3xl">🔍</div>
-            <h3 className="text-base font-bold text-slate-800">No opportunities match your filter</h3>
-            <p className="text-xs sm:text-sm text-slate-500 max-w-sm mx-auto">
-              Try adjusting your search terms, changing the active filter chips, or triggering a new Radar scan.
+        {loading ? (
+          <div className="p-12 text-center text-slate-400 text-sm">
+            Loading opportunities from database...
+          </div>
+        ) : filteredOpportunities.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 sm:p-12 text-center space-y-4">
+            <div className="text-4xl">📡</div>
+            <h3 className="text-base font-bold text-slate-800">No opportunities in database yet</h3>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
+              Your database is connected! Tap the button below to run your first live scan across connected sources.
             </p>
             <button
-              onClick={() => {
-                setQuery("");
-                setSelectedFilter("all");
-              }}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition"
+              onClick={handleScan}
+              disabled={discovering}
+              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-xs sm:text-sm shadow transition"
             >
-              Clear All Filters
+              {discovering ? "Scanning Sources..." : "Run First Radar Scan 🚀"}
             </button>
           </div>
         ) : (
