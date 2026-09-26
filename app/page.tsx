@@ -1,194 +1,221 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function HomePage() {
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/discover?q=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      router.push("/discover");
+    }
+  };
+
+  const sampleOpportunities = [
+    {
+      title: "Short-Form Video & Tutorial Editor",
+      company: "EduMedia Creators",
+      category: "Freelance",
+      compensation: "$150 – $300 / project",
+      remote: true,
+      source: "Reddit",
+      tags: ["Video Editing", "Subtitles", "Motion Graphics"],
+    },
+    {
+      title: "Python Data Pipeline & Automation Engineer",
+      company: "OpenCore Foundation",
+      category: "Contract",
+      compensation: "$500 – $1,000 / milestone",
+      remote: true,
+      source: "GitHub Bounties",
+      tags: ["Python", "Automation", "PostgreSQL"],
+    },
+    {
+      title: "Bilingual English/Urdu Content Specialist",
+      company: "Localization Global",
+      category: "Freelance",
+      compensation: "$400 – $700 / month",
+      remote: true,
+      source: "AI Web Search",
+      tags: ["Translation", "Writing", "Research"],
+    },
+  ];
+
   return (
-    <div className="flex flex-col items-center">
+    <div className="w-full space-y-12 sm:space-y-16 py-4 sm:py-8">
       {/* Hero Section */}
-      <section className="w-full max-w-4xl py-6 sm:py-14 text-center flex flex-col items-center">
-        {/* Status Pill */}
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-50/90 text-indigo-700 border border-indigo-200/80 mb-6 shadow-sm">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600"></span>
-          </span>
-          <span>Open-Source &bull; Privacy-First Radar</span>
+      <div className="text-center max-w-3xl mx-auto space-y-4 px-2">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+          <span>🚀 Open-Source • Privacy-First Opportunity Engine</span>
         </div>
 
-        {/* Main Heading */}
-        <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.15] max-w-3xl">
-          Discover opportunities that match what you{" "}
-          <span className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-600 bg-clip-text text-transparent">
+        <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
+          Find opportunities that fit what you can{" "}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600">
             actually do
           </span>
           .
         </h1>
 
-        {/* Subtitle */}
-        <p className="mt-4 sm:mt-6 text-base sm:text-lg text-slate-600 max-w-2xl leading-relaxed px-2">
-          Tell the radar your skills, experience, and interests. AI cuts through the noise to find high-signal grants, jobs, hackathons, and bounties tailored specifically to you.
+        <p className="text-sm sm:text-lg text-slate-600 max-w-xl mx-auto">
+          Jobs, freelance contracts, grants, and paid bounties matched directly to your CV, real skills, and income goals.
         </p>
 
-        {/* Action Buttons (Stacked on mobile, row on tablet/desktop) */}
-        <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 w-full max-w-sm sm:max-w-none">
-          <Link
-            href="/profile"
-            className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 rounded-xl bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-500/20 hover:bg-indigo-700 active:scale-[0.98] transition"
+        {/* Public Search Bar */}
+        <form onSubmit={handleSearch} className="max-w-2xl mx-auto mt-6 flex flex-col sm:flex-row gap-2.5 p-2 bg-white rounded-2xl border border-slate-300 shadow-md">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Try searching 'Python', 'Video Editor', 'Urdu translation'..."
+            className="flex-1 px-4 py-3 text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50/50"
+          />
+          <button
+            type="submit"
+            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-sm rounded-xl shadow transition whitespace-nowrap"
           >
-            Create Your Profile &rarr;
-          </Link>
-          <Link
-            href="/dashboard"
-            className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 rounded-xl bg-white border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 hover:border-slate-400 active:scale-[0.98] transition"
-          >
-            View Demo Radar
+            Search Opportunities 🔍
+          </button>
+        </form>
+
+        <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500 pt-2">
+          <span>Popular searches:</span>
+          <button onClick={() => router.push("/discover?q=Python")} className="text-indigo-600 hover:underline font-medium">Python</button>
+          <span>•</span>
+          <button onClick={() => router.push("/discover?q=Video")} className="text-indigo-600 hover:underline font-medium">Video Editing</button>
+          <span>•</span>
+          <button onClick={() => router.push("/discover?q=Remote")} className="text-indigo-600 hover:underline font-medium">100% Remote</button>
+          <span>•</span>
+          <button onClick={() => router.push("/discover?q=Data")} className="text-indigo-600 hover:underline font-medium">Data Analysis</button>
+        </div>
+      </div>
+
+      {/* Live Preview Section */}
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-4">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              Recently Discovered Opportunities
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500">
+              Live sample of listings discovered across public boards, Reddit, and GitHub.
+            </p>
+          </div>
+          <Link href="/discover" className="text-xs sm:text-sm font-bold text-indigo-600 hover:text-indigo-700">
+            Browse All in Discover →
           </Link>
         </div>
 
-        {/* Trust Badges */}
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-xs font-medium text-slate-500">
-          <div className="flex items-center gap-1.5">
-            <span className="text-emerald-500 text-sm">✓</span> 100% Free &amp; Open Source
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-emerald-500 text-sm">✓</span> Zero Data Tracking
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-emerald-500 text-sm">✓</span> Verified Sources Only
-          </div>
-        </div>
-      </section>
-
-      {/* Live Preview Card */}
-      <section className="w-full max-w-3xl my-6">
-        <div className="p-1 rounded-2xl bg-gradient-to-b from-indigo-100 to-slate-100 border border-slate-200 shadow-sm">
-          <div className="bg-white p-5 sm:p-7 rounded-[14px]">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4 text-xs font-medium text-slate-400">
-              <span className="flex items-center gap-1.5 text-indigo-600 font-semibold">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block"></span>
-                RADAR MATCH SAMPLE
-              </span>
-              <span>Matched 10 mins ago</span>
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Opportunity Preview Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {sampleOpportunities.map((opp, idx) => (
+            <div key={idx} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-4">
               <div>
-                <span className="inline-block px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-2">
-                  96% Profile Match
-                </span>
-                <h3 className="text-lg sm:text-xl font-bold text-slate-900">
-                  Autonomous AI Agent Fellowship &amp; Grant
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full">
+                    {opp.category}
+                  </span>
+                  <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                    🔒 Sign in for Match Score
+                  </span>
+                </div>
+
+                <h3 className="font-bold text-base text-slate-900 mt-2.5 leading-snug">
+                  {opp.title}
                 </h3>
-                <p className="text-sm text-slate-500 mt-1">
-                  Global Open Source Foundation &bull; Remote &bull; $10,000 Equity-Free
+                <p className="text-xs text-slate-500 mt-1">
+                  {opp.company} • {opp.remote ? "🌐 Remote" : "📍 On-site"}
                 </p>
+
+                <div className="mt-3 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg inline-block">
+                  💵 {opp.compensation}
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {opp.tags.map((t, i) => (
+                    <span key={i} className="text-[10px] font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                      {t}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="shrink-0">
-                <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-semibold">
-                  Source: GitHub
-                </span>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                <span className="text-slate-400 text-[11px]">Via {opp.source}</span>
+                <Link
+                  href="/signup"
+                  className="font-bold text-indigo-600 hover:text-indigo-700 text-xs"
+                >
+                  Match with CV →
+                </Link>
               </div>
             </div>
-
-            <p className="mt-4 text-sm text-slate-600 line-clamp-2">
-              Seeking builders to research prompt systems, autonomous agents, and tool protocols. Matched based on your profile skills in AI agent workflows.
-            </p>
-
-            <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
-              <span className="px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">Prompt Engineering</span>
-              <span className="px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">Autonomous Agents</span>
-              <span className="px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">Remote</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Core Principles Cards */}
-      <section className="w-full max-w-5xl my-10 sm:my-16">
-        <div className="text-center mb-10">
-          <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">Built to protect your focus and privacy</h2>
-          <p className="text-slate-600 text-sm sm:text-base mt-2">Everything you need without the spam of traditional job boards.</p>
+          ))}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-          <div className="p-6 bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:border-indigo-300 hover:shadow-md transition">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-xl mb-4 text-indigo-600">
-              🛡️
-            </div>
-            <h3 className="font-bold text-lg text-slate-900">Privacy First</h3>
-            <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-              Your resume, credentials, and profile remain completely private. Nothing is ever indexed publicly or sold to third parties.
+        {/* Value Proposition CTA Card */}
+        <div className="bg-gradient-to-r from-indigo-900 to-slate-900 text-white rounded-3xl p-6 sm:p-10 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-2 text-center md:text-left max-w-xl">
+            <span className="px-3 py-1 bg-white/10 text-indigo-200 rounded-full text-xs font-bold uppercase tracking-wider">
+              Unlock Your Personal Radar
+            </span>
+            <h3 className="text-xl sm:text-2xl font-bold tracking-tight">
+              Upload your CV to see exact match percentages & AI application drafts.
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-300">
+              Never browse 10,000 irrelevant jobs again. The Radar only shows what fits what you can actually do.
             </p>
           </div>
 
-          <div className="p-6 bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:border-indigo-300 hover:shadow-md transition">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-xl mb-4 text-indigo-600">
-              ⚡
-            </div>
-            <h3 className="font-bold text-lg text-slate-900">Smart AI Matching</h3>
-            <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-              Intelligent evaluation matches opportunities with your exact verified capabilities, ignoring fluff and deceptive job titles.
-            </p>
-          </div>
-
-          <div className="p-6 bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:border-indigo-300 hover:shadow-md transition">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-xl mb-4 text-indigo-600">
-              🔔
-            </div>
-            <h3 className="font-bold text-lg text-slate-900">Instant Digests</h3>
-            <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-              Receive automated notifications and curated periodic updates straight to your Telegram or personal dashboard.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* 3-Step Flow */}
-      <section className="w-full max-w-4xl my-8 sm:my-12 px-2">
-        <h2 className="text-xl sm:text-2xl font-bold text-center text-slate-900 mb-8">How It Works in 3 Steps</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
-          <div className="flex flex-col items-center">
-            <div className="w-10 h-10 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center mb-3 text-sm">
-              1
-            </div>
-            <h4 className="font-semibold text-slate-900">Set Up Your Profile</h4>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">List your real skills, preferred roles, and availability.</p>
-          </div>
-
-          <div className="flex flex-col items-center">
-            <div className="w-10 h-10 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center mb-3 text-sm">
-              2
-            </div>
-            <h4 className="font-semibold text-slate-900">Radar Monitors Sources</h4>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">AI scans GitHub, grants, job boards, and RSS feeds in the background.</p>
-          </div>
-
-          <div className="flex flex-col items-center">
-            <div className="w-10 h-10 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center mb-3 text-sm">
-              3
-            </div>
-            <h4 className="font-semibold text-slate-900">Review &amp; Apply</h4>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">Get high-signal matches delivered to you ready for direct action.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Bottom CTA Card */}
-      <section className="w-full max-w-4xl my-8 sm:my-14">
-        <div className="rounded-3xl bg-gradient-to-r from-indigo-600 to-indigo-800 p-8 sm:p-12 text-center text-white shadow-xl shadow-indigo-500/10">
-          <h2 className="text-2xl sm:text-4xl font-black tracking-tight">Ready to activate your opportunity radar?</h2>
-          <p className="mt-3 text-indigo-100 text-sm sm:text-base max-w-xl mx-auto">
-            Take 2 minutes to fill your skill profile and let the AI find what matters.
-          </p>
-          <div className="mt-6 flex justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
             <Link
-              href="/profile"
-              className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 rounded-xl bg-white text-indigo-700 font-bold hover:bg-indigo-50 shadow-md transition"
+              href="/signup"
+              className="px-6 py-3.5 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl text-center text-sm shadow transition"
             >
-              Get Started Now
+              Sign Up & Upload Resume 📄
+            </Link>
+            <Link
+              href="/login"
+              className="px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl text-center text-sm border border-white/20 transition"
+            >
+              Log In
             </Link>
           </div>
         </div>
-      </section>
+      </div>
+
+      {/* Trust & Transparency Section */}
+      <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4 text-left">
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+          <div className="text-2xl">🛡️</div>
+          <h4 className="font-bold text-slate-900 text-sm">Privacy-First Architecture</h4>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Your CV and private profile stay strictly inside your instance. We never leak your resume, email, or identity to external employers or scraping boards.
+          </p>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+          <div className="text-2xl">🔗</div>
+          <h4 className="font-bold text-slate-900 text-sm">Direct, Verified Sources</h4>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Every opportunity contains a direct, verifiable link back to the original source. No middlemen, no paywalls, and no fabricated listings.
+          </p>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
+          <div className="text-2xl">🤝</div>
+          <h4 className="font-bold text-slate-900 text-sm">Human in Control</h4>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            AI assists and explains match reasoning. It will never automatically spam applications or send messages without your direct review.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
