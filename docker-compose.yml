@@ -1,0 +1,34 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: opportunity_radar_app
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://radar:radar_secure_pass@db:5432/opportunity_radar?schema=public
+      - NEXTAUTH_SECRET=super_secret_production_key_32_characters_minimum
+      - NEXTAUTH_URL=http://localhost:3000
+      - AI_PROVIDER=fallback
+    depends_on:
+      - db
+    restart: always
+
+  db:
+    image: postgres:16-alpine
+    container_name: opportunity_radar_db
+    environment:
+      POSTGRES_USER: radar
+      POSTGRES_PASSWORD: radar_secure_pass
+      POSTGRES_DB: opportunity_radar
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  postgres_data:
