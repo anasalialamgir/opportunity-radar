@@ -2,21 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
 import { 
   Target, 
   Sparkles, 
   CheckCircle2, 
-  Compass, 
   ArrowRight, 
   Briefcase, 
-  MapPin, 
-  ShieldCheck, 
   ExternalLink 
 } from "lucide-react";
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession();
+  const [sessionUser, setSessionUser] = useState<{ name?: string | null; email?: string | null } | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,16 +20,21 @@ export default function DashboardPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        // Load user profile
-        const profRes = await fetch("/api/profile");
-        let profData = null;
-        if (profRes.ok) {
-          const resJson = await profRes.json();
-          profData = resJson.profile;
-          setProfile(profData);
+        // 1. Fetch user session safely
+        const sessionRes = await fetch("/api/auth/session");
+        if (sessionRes.ok) {
+          const sJson = await sessionRes.json();
+          if (sJson?.user) setSessionUser(sJson.user);
         }
 
-        // Fetch smart matched jobs
+        // 2. Fetch user profile
+        const profRes = await fetch("/api/profile");
+        if (profRes.ok) {
+          const pJson = await profRes.json();
+          if (pJson?.profile) setProfile(pJson.profile);
+        }
+
+        // 3. Fetch smart matched opportunities
         const jobsRes = await fetch("/api/discover");
         if (jobsRes.ok) {
           const jJson = await jobsRes.json();
@@ -48,15 +49,16 @@ export default function DashboardPage() {
     loadData();
   }, []);
 
-  const isAuthenticatedWithCV = Boolean(session && (profile?.cvFileName || profile?.skills?.length));
+  const hasCvUploaded = Boolean(profile?.cvFileName || profile?.skills?.length);
+  const isAuthenticatedWithCV = Boolean(sessionUser && hasCvUploaded);
 
   return (
     <div className="min-h-screen bg-slate-50/60 pb-24 pt-4 px-4 sm:px-6">
       <div className="max-w-xl mx-auto space-y-5">
         
-        {/* HERO BANNER: Adapts dynamically based on login & CV state */}
+        {/* Dynamic Hero Banner */}
         {!isAuthenticatedWithCV ? (
-          /* Unauthenticated State */
+          /* Guest or Logged-in without CV */
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#111827] via-[#0f172a] to-[#020617] p-6 text-white shadow-xl">
             <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl" />
             <div className="relative z-10 space-y-4">
@@ -67,7 +69,7 @@ export default function DashboardPage() {
                 Upload your CV to see exact match percentages & AI application drafts.
               </h2>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Never browse 10,000 irrelevant jobs again. The Radar only surfaces roles that match what you can actually do.
+                Never browse 10,000 irrelevant jobs again. The Radar only surfaces opportunities that fit what you can actually do.
               </p>
               <div className="space-y-2 pt-2">
                 <Link
@@ -86,7 +88,7 @@ export default function DashboardPage() {
             </div>
           </div>
         ) : (
-          /* Authenticated & CV Uploaded State */
+          /* Logged-In with CV Active */
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#111827] via-[#0f172a] to-[#020617] p-6 text-white shadow-xl">
             <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl" />
             <div className="relative z-10 space-y-3">
@@ -104,7 +106,7 @@ export default function DashboardPage() {
               </div>
 
               <h2 className="text-xl font-black tracking-tight">
-                Matching Opportunities for {session?.user?.name || "You"}
+                Matching Opportunities for {sessionUser?.name || "You"}
               </h2>
               
               <div className="flex flex-wrap gap-2 text-[11px] pt-1">
@@ -112,7 +114,7 @@ export default function DashboardPage() {
                   📄 {profile?.cvFileName || "Active CV"}
                 </span>
                 <span className="px-2.5 py-1 rounded-lg bg-slate-800/80 text-slate-300 border border-slate-700">
-                  💼 {profile?.targetRoles?.[0] || profile?.targetRoles || "Software Engineer"}
+                  💼 {profile?.targetRoles?.[0] || (Array.isArray(profile?.targetRoles) ? profile?.targetRoles.join(", ") : "Engineer")}
                 </span>
                 <span className="px-2.5 py-1 rounded-lg bg-emerald-950/50 text-emerald-300 border border-emerald-800/40">
                   💰 {profile?.currency || "USD"} {profile?.minMonthlyPay || "5,000"}+/mo
@@ -122,7 +124,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* SMART MATCHED JOBS LIST */}
+        {/* Top Matched Opportunities List */}
         <div className="space-y-3">
           <div className="flex items-center justify-between px-1">
             <h3 className="text-sm font-bold text-slate-900">
@@ -152,7 +154,6 @@ export default function DashboardPage() {
                 </span>
               </div>
 
-              {/* Matched Skill Badges */}
               {job.matchedSkills && job.matchedSkills.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   <span className="text-[10px] text-slate-400 font-semibold self-center">Matches CV:</span>
