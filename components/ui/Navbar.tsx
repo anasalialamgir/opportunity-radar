@@ -1,14 +1,25 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
-import { Target, Compass, Bookmark, User, LogOut, LogIn, Upload } from "lucide-react";
+import { Target, Compass, Bookmark, User, LogOut, Upload } from "lucide-react";
 
-export default function Navbar() {
+export function Navbar() {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const [user, setUser] = useState<{ name?: string | null; email?: string | null } | null>(null);
+
+  useEffect(() => {
+    // Check user session safely without requiring external context providers
+    fetch("/api/auth/session")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.user) {
+          setUser(data.user);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const links = [
     { label: "Discover", href: "/discover", icon: Compass },
@@ -16,6 +27,15 @@ export default function Navbar() {
     { label: "Saved", href: "/saved", icon: Bookmark },
     { label: "Profile", href: "/profile", icon: User },
   ];
+
+  const handleSignOut = async () => {
+    try {
+      await fetch("/api/auth/signout", { method: "POST" });
+      window.location.href = "/";
+    } catch {
+      window.location.href = "/";
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur-md border-b border-slate-200/80">
@@ -30,7 +50,7 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* Desktop Nav */}
+        {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-1">
           {links.map((link) => {
             const isActive = pathname === link.href;
@@ -52,17 +72,17 @@ export default function Navbar() {
 
         {/* Auth State Actions */}
         <div className="flex items-center gap-2">
-          {session ? (
+          {user ? (
             <div className="flex items-center gap-2">
               <Link
                 href="/profile"
                 className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50"
               >
                 <User className="w-3.5 h-3.5 text-indigo-600" />
-                <span>{session.user?.name || session.user?.email?.split("@")[0]}</span>
+                <span>{user.name || user.email?.split("@")[0]}</span>
               </Link>
               <button
-                onClick={() => signOut({ callbackUrl: "/" })}
+                onClick={handleSignOut}
                 className="p-2 text-slate-400 hover:text-red-600 rounded-xl hover:bg-slate-50 transition-colors"
                 title="Log Out"
               >
@@ -90,3 +110,5 @@ export default function Navbar() {
     </header>
   );
 }
+
+export default Navbar;
