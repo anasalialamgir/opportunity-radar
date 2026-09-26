@@ -1,52 +1,64 @@
 import { NextAuthOptions } from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { prisma } from "@/lib/prisma";
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import prisma from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   pages: {
-    signIn: "/profile",
+    signIn: "/login",
   },
   providers: [
     CredentialsProvider({
-      name: "Guest / Demo Access",
+      name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email", placeholder: "user@example.com" },
-        name: { label: "Name", type: "text", placeholder: "Your Name" },
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.email) {
-          return null;
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Please enter both email and password.");
         }
 
-        let user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email.toLowerCase().trim() }
         });
 
-        if (!user) {
-          user = await prisma.user.create({
-            data: {
-              email: credentials.email,
-              name: credentials.name || "Explorer",
-            },
-          });
+        if (!user || !user.password) {
+          throw new Error("Invalid credentials or account does not exist.");
         }
 
-        return user;
-      },
-    }),
+        const isPasswordMatch = await bcrypt.compare(credentials.password, user.password);
+        if (!isPasswordMatch) {
+          throw new Error("Incorrect password. Please try again.");
+        }
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        };
+      }
+    })
   ],
   callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    },
     async session({ session, token }) {
-      if (token && session.user) {
-        (session.user as any).id = token.sub;
+      if (session.user) {
+        (session.user as any).id = token.id as string;
       }
       return session;
-    },
+    }
   },
-  secret: process.env.NEXTAUTH_SECRET || "default_development_secret_key_123456789",
+  secret: process.env.NEXTAUTH_SECRET || "opp-radar-secret-key-change-in-production-12345",
 };
