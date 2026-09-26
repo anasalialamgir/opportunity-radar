@@ -50,7 +50,7 @@ export function Navbar() {
           ))}
         </nav>
 
-        {/* Desktop Buttons & Authentication */}
+        {/* Desktop Action & Auth Buttons */}
         <div className="hidden md:flex items-center gap-3">
           <Link
             href="/profile/cv-upload"
@@ -99,7 +99,7 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu Drawer */}
+      {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-slate-200 bg-white px-4 py-4 space-y-3 shadow-lg">
           {navLinks.map((link) => (
