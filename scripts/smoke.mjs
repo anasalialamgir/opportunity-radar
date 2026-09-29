@@ -52,6 +52,7 @@ try {
   const alerts = await request("/api/alerts"); assert.ok(alerts.data.alerts.some(item => item.id === alert.data.alert.id));
   const paused = await request(`/api/alerts/${alert.data.alert.id}`, { method: "PATCH", ...json({ enabled: false }) }); assert.equal(paused.status, 200);
   const unauthorizedCron = await request("/api/cron/scan", { method: "POST" }); assert.equal(unauthorizedCron.status, 401);
+  const unauthorizedVercelCron = await request("/api/cron/scan"); assert.equal(unauthorizedVercelCron.status, 401);
   const exportResult = await request("/api/account/data"); assert.equal(exportResult.data.email, email);
   const resetRequest = await request("/api/account/request-reset", { method: "POST", ...json({ email }) }); assert.equal(resetRequest.status, 200);
   const resetToken = await mailedToken("Reset your Opportunity Radar password", "reset-password");

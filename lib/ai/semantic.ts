@@ -6,6 +6,19 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 async function embeddings(inputs: string[]): Promise<number[][]> {
+  if (process.env.AI_PROVIDER === "gemini") {
+    const model = process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001";
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:batchEmbedContents`, {
+      method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY || "" },
+      body: JSON.stringify({ requests: inputs.map(text => ({ model: `models/${model}`, content: { parts: [{ text }] } })) }),
+      signal: AbortSignal.timeout(45000),
+    });
+    if (!res.ok) throw new Error(`Gemini embeddings returned ${res.status}`);
+    const data = await res.json();
+    const vectors = data.embeddings?.map((item: { values?: number[] }) => item.values);
+    if (vectors?.length !== inputs.length || !vectors.every((v: unknown) => Array.isArray(v) && v.length > 0)) throw new Error("Invalid Gemini embedding response");
+    return vectors;
+  }
   const res = await fetch("https://api.openai.com/v1/embeddings", {
     method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
     body: JSON.stringify({ model: process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small", input: inputs }),
@@ -19,7 +32,7 @@ async function embeddings(inputs: string[]): Promise<number[][]> {
 }
 
 export async function semanticScores(profileText: string, jobTexts: string[]): Promise<number[] | null> {
-  if (!process.env.OPENAI_API_KEY || process.env.AI_SEMANTIC_MATCHING === "false" || !jobTexts.length) return null;
+  if (!(process.env.AI_PROVIDER === "gemini" ? process.env.GEMINI_API_KEY : process.env.OPENAI_API_KEY) || process.env.AI_SEMANTIC_MATCHING === "false" || !jobTexts.length) return null;
   const input = [profileText.slice(0, 2000), ...jobTexts.map(s => s.slice(0, 650))];
   const vectors: number[][] = [];
   for (let i = 0; i < input.length; i += 100) vectors.push(...await embeddings(input.slice(i, i + 100)));

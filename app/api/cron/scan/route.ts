@@ -10,3 +10,5 @@ export async function POST(req: Request) {
   try { return NextResponse.json(await runAlertCycle()); }
   catch (error: any) { return NextResponse.json({ error: error.message || "Alert cycle failed" }, { status: 503 }); }
 }
+// Vercel Cron invokes its configured path with GET; the same bearer secret is required.
+export const GET = POST;
