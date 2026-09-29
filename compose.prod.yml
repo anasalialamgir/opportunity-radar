@@ -1,0 +1,65 @@
+services:
+  web:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    restart: always
+  app:
+    build: .
+    environment: &app_env
+      DATABASE_URL: postgresql://radar:${POSTGRES_PASSWORD}@db:5432/opportunity_radar?schema=public
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: https://${DOMAIN}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL:-gemini-embedding-001}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      CRON_SECRET: ${CRON_SECRET}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+  worker:
+    build: .
+    command: ["node", "scripts/alert-worker.mjs"]
+    environment:
+      WORKER_APP_URL: http://app:3000
+      CRON_SECRET: ${CRON_SECRET}
+      SCAN_INTERVAL_MINUTES: ${SCAN_INTERVAL_MINUTES:-360}
+    depends_on:
+      - app
+    restart: always
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: radar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: opportunity_radar
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U radar -d opportunity_radar"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: always
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

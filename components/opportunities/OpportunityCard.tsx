@@ -14,8 +14,9 @@ export interface CardOpportunityProps {
   minCompensation?: number;
   maxCompensation?: number;
   currency?: string;
+  compensationPeriod?: string;
   source: string;
-  matchScore?: number;
+  matchScore?: number | null;
   reasons?: string[];
   onSave?: (id: string) => void;
   onDismiss?: (id: string) => void;
@@ -32,8 +33,9 @@ export function OpportunityCard({
   minCompensation,
   maxCompensation,
   currency = "USD",
+  compensationPeriod,
   source,
-  matchScore = 85,
+  matchScore,
   reasons = [],
   onSave,
   onDismiss,
@@ -41,10 +43,10 @@ export function OpportunityCard({
 }: CardOpportunityProps) {
   const compDisplay =
     minCompensation && maxCompensation
-      ? `$${minCompensation} – $${maxCompensation}`
+      ? `${currency} ${minCompensation.toLocaleString()} – ${maxCompensation.toLocaleString()}`
       : minCompensation
-      ? `From $${minCompensation}`
-      : "Flexible / Unstated";
+      ? `From ${currency} ${minCompensation.toLocaleString()}`
+      : "Pay not stated";
 
   // Evaluate safety and scam risks in real-time
   const safety = evaluateOpportunitySafety(title, description);
@@ -63,7 +65,7 @@ export function OpportunityCard({
             </p>
           </div>
 
-          <span
+          {matchScore != null && <span
             className={`shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-bold ${
               matchScore >= 90
                 ? "bg-emerald-100 text-emerald-800"
@@ -73,7 +75,7 @@ export function OpportunityCard({
             }`}
           >
             {matchScore}% match
-          </span>
+          </span>}
         </div>
 
         {/* Safety Warnings if detected */}
@@ -91,7 +93,7 @@ export function OpportunityCard({
             {remote ? "🌐 Remote" : "📍 Local / On-site"}
           </span>
           <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-semibold border border-emerald-200">
-            💵 {compDisplay}
+            💵 {compDisplay}{compensationPeriod && compensationPeriod !== "unspecified" ? ` / ${compensationPeriod}` : ""}
           </span>
         </div>
 

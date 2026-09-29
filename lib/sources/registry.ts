@@ -53,7 +53,7 @@ class SourceRegistry {
 
   async checkAllHealth(): Promise<Record<string, SourceHealth>> {
     const statuses: Record<string, SourceHealth> = {};
-    for (const [id, source] of this.sources.entries()) {
+    for (const [id, source] of Array.from(this.sources.entries())) {
       try {
         statuses[id] = await source.healthCheck();
       } catch (err: any) {

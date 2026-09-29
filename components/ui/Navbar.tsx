@@ -3,22 +3,14 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Radar, FileText, LogOut, Bell } from "lucide-react";
+import { useSession, signOut } from "next-auth/react";
+import { Radar, FileText, LogOut } from "lucide-react";
 
 export function Navbar() {
   const pathname = usePathname();
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-
-  useEffect(() => {
-    setUserEmail(localStorage.getItem("opportunity_radar_user_email"));
-  }, [pathname]);
-
-  const handleLogout = () => {
-    localStorage.removeItem("opportunity_radar_user_email");
-    localStorage.removeItem("opportunity_radar_user_name");
-    setUserEmail(null);
-    window.location.href = "/";
-  };
+  const { data: session } = useSession();
+  const userEmail = session?.user?.email;
+  const handleLogout = () => signOut({ callbackUrl: "/" });
 
   return (
     <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-slate-100">

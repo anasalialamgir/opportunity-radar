@@ -1,5 +1,6 @@
 import "./globals.css";
 import React from "react";
+import { SessionShell } from "@/components/SessionShell";
 import { Navbar } from "@/components/ui/Navbar";
 import { MobileBottomNav } from "@/components/ui/MobileBottomNav";
 
@@ -16,6 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans antialiased">
+        <SessionShell>
         <Navbar />
         {/* pb-20 on mobile ensures bottom navigation never covers your content */}
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 pb-20 md:pb-6">
@@ -26,6 +28,7 @@ export default function RootLayout({
         </footer>
         {/* Mobile Bottom Navigation Bar */}
         <MobileBottomNav />
+        </SessionShell>
       </body>
     </html>
   );

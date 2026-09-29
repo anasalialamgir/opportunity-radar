@@ -1,57 +1,31 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-
+import { currentUserId } from "@/lib/current-user";
+const statuses = ["Saved", "Preparing", "Applied", "Interview", "Offer", "Rejected", "Closed"];
+export async function GET() {
+  const userId = await currentUserId();
+  if (!userId) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+  const [saved, applications] = await Promise.all([
+    prisma.savedOpportunity.findMany({ where: { userId, dismissed: false }, include: { opportunity: true }, orderBy: { savedAt: "desc" } }),
+    prisma.application.findMany({ where: { userId }, include: { opportunity: true }, orderBy: { updatedAt: "desc" } }),
+  ]);
+  const items = new Map<string, any>();
+  saved.forEach(s => items.set(s.opportunityId, { ...s.opportunity, status: "Saved" }));
+  applications.forEach(a => items.set(a.opportunityId, { ...a.opportunity, status: a.status }));
+  return NextResponse.json({ items: Array.from(items.values()) });
+}
 export async function POST(req: Request) {
-  try {
-    const { opportunityId, userEmail, action, status } = await req.json();
-
-    if (!opportunityId || !userEmail) {
-      return NextResponse.json({ error: "opportunityId and userEmail are required" }, { status: 400 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: userEmail },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    if (action === "save") {
-      await prisma.savedOpportunity.upsert({
-        where: {
-          userId_opportunityId: { userId: user.id, opportunityId },
-        },
-        update: { dismissed: false },
-        create: { userId: user.id, opportunityId, dismissed: false },
-      });
-      return NextResponse.json({ success: true, message: "Saved" });
-    }
-
-    if (action === "dismiss") {
-      await prisma.savedOpportunity.upsert({
-        where: {
-          userId_opportunityId: { userId: user.id, opportunityId },
-        },
-        update: { dismissed: true },
-        create: { userId: user.id, opportunityId, dismissed: true },
-      });
-      return NextResponse.json({ success: true, message: "Dismissed" });
-    }
-
-    if (action === "applied") {
-      await prisma.application.upsert({
-        where: {
-          userId_opportunityId: { userId: user.id, opportunityId },
-        },
-        update: { status: status || "Applied", appliedAt: new Date() },
-        create: { userId: user.id, opportunityId, status: status || "Applied", appliedAt: new Date() },
-      });
-      return NextResponse.json({ success: true, message: "Marked as Applied" });
-    }
-
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  const userId = await currentUserId();
+  if (!userId) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+  const { opportunityId, action, status } = await req.json();
+  if (typeof opportunityId !== "string" || !["save", "dismiss", "applied", "status"].includes(action)) return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  const opp = await prisma.opportunity.findUnique({ where: { id: opportunityId }, select: { id: true } });
+  if (!opp) return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+  if (action === "save" || action === "dismiss") await prisma.savedOpportunity.upsert({ where: { userId_opportunityId: { userId, opportunityId } }, update: { dismissed: action === "dismiss" }, create: { userId, opportunityId, dismissed: action === "dismiss" } });
+  else {
+    const next = action === "applied" ? "Applied" : status;
+    if (!statuses.includes(next)) return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    await prisma.application.upsert({ where: { userId_opportunityId: { userId, opportunityId } }, update: { status: next, appliedAt: next === "Applied" ? new Date() : undefined }, create: { userId, opportunityId, status: next, appliedAt: next === "Applied" ? new Date() : null } });
   }
+  return NextResponse.json({ success: true });
 }

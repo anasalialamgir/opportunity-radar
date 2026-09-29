@@ -1,0 +1,53 @@
+name: Verify website
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: radar
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: opportunity_radar
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U radar -d opportunity_radar"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://radar:test_password@localhost:5432/opportunity_radar?schema=public
+      NEXTAUTH_SECRET: testing-secret-for-integration-at-least-32-characters
+      NEXTAUTH_URL: http://localhost:3000
+      CRON_SECRET: integration-cron-secret-at-least-32-characters
+      SMTP_HOST: 127.0.0.1
+      SMTP_PORT: 2525
+      SMTP_USER: test
+      SMTP_PASSWORD: test
+      EMAIL_FROM: test@example.test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run db:deploy
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Start server and test full database flow
+        run: |
+          node scripts/smtp-sink.mjs > /tmp/radar-smtp.log 2>&1 &
+          npm start > /tmp/opportunity-radar-next.log 2>&1 &
+          for attempt in $(seq 1 40); do
+            if curl --fail --silent http://localhost:3000/api/health > /dev/null; then break; fi
+            sleep 2
+          done
+          node scripts/smoke.mjs || { cat /tmp/opportunity-radar-next.log /tmp/radar-smtp.log; exit 1; }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { OpportunityCard } from "@/components/opportunities/OpportunityCard";
@@ -16,7 +16,7 @@ interface OpportunityItem {
   maxCompensation?: number;
   source: string;
   sourceUrl?: string;
-  matchScore: number;
+  matchScore: number | null;
   reasons: string[];
 }
 
@@ -31,28 +31,29 @@ export default function DashboardPage() {
   const [notification, setNotification] = useState<{ message: string; type: "success" | "info" } | null>(null);
   const [opportunities, setOpportunities] = useState<OpportunityItem[]>([]);
 
-  useEffect(() => {
-    const savedEmail = localStorage.getItem("opportunity_radar_user_email") || "";
-    setUserEmail(savedEmail);
-    fetchLiveOpportunities(savedEmail);
-  }, []);
-
-  const fetchLiveOpportunities = async (email?: string) => {
+  const fetchLiveOpportunities = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/opportunities${email ? `?email=${encodeURIComponent(email)}` : ""}`);
+      const res = await fetch("/api/opportunities");
       const data = await res.json();
+      if (res.status === 401) { router.push("/login"); return; }
+      if (!res.ok) throw new Error(data.error || "Could not load jobs");
       if (data.opportunities && data.opportunities.length > 0) {
         setOpportunities(data.opportunities);
       } else {
         setOpportunities([]);
       }
-    } catch (err) {
-      console.error("Failed to load opportunities:", err);
+    } catch (err: any) {
+      setNotification({ message: err.message || "Could not load jobs.", type: "info" });
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    fetch("/api/profile").then(r => r.json()).then(d => setUserEmail(d.user?.email || ""));
+    fetchLiveOpportunities();
+  }, [fetchLiveOpportunities]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,46 +66,18 @@ export default function DashboardPage() {
 
   const handleScan = async () => {
     setDiscovering(true);
-    setNotification({
-      message: "Radar is scanning live sources (Web Search, RSS, GitHub)...",
-      type: "info",
-    });
-
+    setNotification({ message: "Checking published Remotive, Jobicy, and GitHub listings...", type: "info" });
     try {
-      const res = await fetch("/api/discover", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userEmail }),
-      });
+      const res = await fetch("/api/discover", { method: "POST" });
       const data = await res.json();
-
-      if (data.opportunities && data.opportunities.length > 0) {
-        if (userEmail) {
-          await fetch("/api/match", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userEmail }),
-          });
-        }
-        await fetchLiveOpportunities(userEmail);
-        setNotification({
-          message: `Scan complete! Discovered ${data.totalDiscovered || data.opportunities.length} opportunities.`,
-          type: "success",
-        });
-      } else {
-        setNotification({
-          message: "Scan complete. All active feeds are currently up to date.",
-          type: "success",
-        });
-      }
-    } catch {
-      setNotification({
-        message: "Scan completed with existing cached listings.",
-        type: "info",
-      });
-    } finally {
-      setDiscovering(false);
-    }
+      if (!res.ok) throw new Error(data.error || "Scan failed");
+      const matched = await fetch("/api/match", { method: "POST" });
+      if (!matched.ok) throw new Error((await matched.json()).error || "Matching failed");
+      await fetchLiveOpportunities();
+      setNotification({ message: `Scan complete: ${data.uniqueStored} real listings checked.${data.sources?.length ? ` Some sources unavailable: ${data.sources.join(", ")}.` : ""}`, type: "success" });
+    } catch (err: any) {
+      setNotification({ message: err.message || "Scan failed. Please retry.", type: "info" });
+    } finally { setDiscovering(false); }
   };
 
   const handleAction = async (id: string, actionName: string) => {
@@ -117,12 +90,13 @@ export default function DashboardPage() {
     }
 
     try {
-      await fetch("/api/opportunities/status", {
+      const response = await fetch("/api/opportunities/status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ opportunityId: id, userEmail, action: actionName }),
+        body: JSON.stringify({ opportunityId: id, action: actionName }),
       });
 
+      if (!response.ok) throw new Error((await response.json()).error || "Could not update job");
       if (actionName === "dismiss") {
         setOpportunities((prev) => prev.filter((o) => o.id !== id));
         setNotification({ message: "Opportunity dismissed.", type: "info" });
@@ -139,21 +113,21 @@ export default function DashboardPage() {
   const filteredOpportunities = useMemo(() => {
     return opportunities
       .filter((opp) => {
-        if (selectedFilter === "high_match") return opp.matchScore >= 90;
+        if (selectedFilter === "high_match") return (opp.matchScore ?? 0) >= 90;
         if (selectedFilter === "remote") return opp.remote;
         if (selectedFilter === "freelance") return opp.category?.toLowerCase() === "freelance";
         if (selectedFilter === "contract") return opp.category?.toLowerCase() === "contract";
         return true;
       })
       .sort((a, b) => {
-        if (sortBy === "match") return b.matchScore - a.matchScore;
+        if (sortBy === "match") return (b.matchScore ?? -1) - (a.matchScore ?? -1);
         if (sortBy === "compensation") return (b.maxCompensation || 0) - (a.maxCompensation || 0);
         return a.title.localeCompare(b.title);
       });
   }, [opportunities, selectedFilter, sortBy]);
 
   const strongMatchesCount = useMemo(() => {
-    return opportunities.filter((o) => o.matchScore >= 90).length;
+    return opportunities.filter((o) => (o.matchScore ?? 0) >= 90).length;
   }, [opportunities]);
 
   return (
@@ -172,7 +146,7 @@ export default function DashboardPage() {
             Opportunity Radar <span className="text-indigo-600">Overview</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 max-w-2xl">
-            Real-time discovered earning opportunities matching your capabilities and income targets.
+            Published jobs ranked against your CV and preferences. Check the original listing for eligibility and availability.
           </p>
         </div>
 
@@ -294,6 +268,14 @@ export default function DashboardPage() {
             View All in Discover →
           </Link>
         </div>
+        <div className="flex flex-wrap gap-3 text-sm">
+          <label>Show <select aria-label="Filter jobs" value={selectedFilter} onChange={e => setSelectedFilter(e.target.value as typeof selectedFilter)} className="ml-2 border rounded-lg p-2 bg-white">
+            <option value="all">All jobs</option><option value="high_match">90%+ fit</option><option value="remote">Remote</option><option value="freelance">Freelance</option><option value="contract">Contract</option>
+          </select></label>
+          <label>Sort <select aria-label="Sort jobs" value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)} className="ml-2 border rounded-lg p-2 bg-white">
+            <option value="match">Best fit</option><option value="compensation">Pay stated</option><option value="title">Job title</option>
+          </select></label>
+        </div>
 
         {loading ? (
           <div className="p-12 text-center text-slate-400 text-sm">
@@ -304,7 +286,7 @@ export default function DashboardPage() {
             <div className="text-4xl">📡</div>
             <h3 className="text-base font-bold text-slate-800">No opportunities in database yet</h3>
             <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
-              Your database is connected! Tap the button below to run your first live scan across connected sources.
+              Add your CV and run a scan to look for published listings. If no feed is available, you will see an error.
             </p>
             <button
               onClick={handleScan}

@@ -1,65 +1,30 @@
 import { OpportunitySource, SearchQuery, RawOpportunity, SourceHealth } from "@/lib/sources/types";
 
+/** Remotive's published public feed. Jobs link back to the original listing. */
 export class RSSOpportunitySource implements OpportunitySource {
-  id = "rss";
-  name = "RSS & Public Feeds";
-  description = "Discovers opportunities from curated public RSS feeds and tech boards.";
+  id = "remotive";
+  name = "Remotive public jobs";
+  description = "Published remote job listings from Remotive.";
   enabled = true;
-
-  capabilities = {
-    search: true,
-    realtime: false,
-    pagination: false,
-  };
+  capabilities = { search: true, realtime: false, pagination: false };
 
   async healthCheck(): Promise<SourceHealth> {
     const start = Date.now();
-    return {
-      status: "healthy",
-      latencyMs: Date.now() - start,
-      message: "RSS feeds accessible",
-    };
+    try {
+      const res = await fetch("https://remotive.com/api/remote-jobs?limit=1", { signal: AbortSignal.timeout(10000) });
+      return { status: res.ok ? "healthy" : "down", latencyMs: Date.now() - start, message: res.ok ? "Feed reachable" : `HTTP ${res.status}` };
+    } catch { return { status: "down", latencyMs: Date.now() - start, message: "Feed unreachable" }; }
   }
 
-  async search(query: SearchQuery): Promise<RawOpportunity[]> {
-    // Built-in starter feeds for remote work, bounties, and grants
-    const sampleItems: RawOpportunity[] = [
-      {
-        externalId: "rss-sample-1",
-        title: "Remote Python Data Pipeline Engineer",
-        description: "Looking for an engineer to build automated web-scraping and data pipelines. 10-15 hrs/week.",
-        sourceUrl: "https://news.ycombinator.com/item?id=sample1",
-        sourceName: "RSS / Tech Feeds",
-        company: "OpenData Labs",
-        location: "Remote",
-        remote: true,
-        rawCompensation: "$500 - $1,000 / milestone",
-        publishedAt: new Date().toISOString(),
-      },
-      {
-        externalId: "rss-sample-2",
-        title: "Short-Form Video & Content Editor",
-        description: "Need video editing for educational tutorials and social clips. Freelance / project-based.",
-        sourceUrl: "https://news.ycombinator.com/item?id=sample2",
-        sourceName: "RSS / Tech Feeds",
-        company: "EduMedia Creators",
-        location: "Remote",
-        remote: true,
-        rawCompensation: "$200 - $400 / video series",
-        publishedAt: new Date().toISOString(),
-      },
-    ];
-
-    if (!query.keywords || query.keywords.length === 0) {
-      return sampleItems;
-    }
-
-    // Filter by keywords if provided
-    return sampleItems.filter((item) =>
-      query.keywords!.some((k) =>
-        item.title.toLowerCase().includes(k.toLowerCase()) ||
-        item.description.toLowerCase().includes(k.toLowerCase())
-      )
-    );
+  async search(_query: SearchQuery): Promise<RawOpportunity[]> {
+    const res = await fetch("https://remotive.com/api/remote-jobs?limit=100", { signal: AbortSignal.timeout(12000), next: { revalidate: 3600 } });
+    if (!res.ok) throw new Error(`Remotive returned ${res.status}`);
+    const data = await res.json();
+    if (!Array.isArray(data.jobs)) throw new Error("Invalid Remotive response");
+    return data.jobs.filter((job: any) => /^https:\/\/remotive\.com\//.test(job.url) && job.title && job.description).map((job: any): RawOpportunity => ({
+      externalId: String(job.id), title: job.title, description: String(job.description).replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").slice(0, 12000),
+      sourceUrl: job.url, sourceName: "Remotive", company: job.company_name, location: job.candidate_required_location || "Remote (check eligibility)",
+      remote: true, rawCompensation: job.salary || undefined, publishedAt: job.publication_date,
+    }));
   }
 }
