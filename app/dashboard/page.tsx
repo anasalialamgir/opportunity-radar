@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { OpportunityCard } from "@/components/opportunities/OpportunityCard";
@@ -31,27 +31,29 @@ export default function DashboardPage() {
   const [notification, setNotification] = useState<{ message: string; type: "success" | "info" } | null>(null);
   const [opportunities, setOpportunities] = useState<OpportunityItem[]>([]);
 
-  useEffect(() => {
-    fetch("/api/profile").then(r => r.json()).then(d => setUserEmail(d.user?.email || ""));
-    fetchLiveOpportunities();
-  }, []);
-
-  const fetchLiveOpportunities = async () => {
+  const fetchLiveOpportunities = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/opportunities");
       const data = await res.json();
+      if (res.status === 401) { router.push("/login"); return; }
+      if (!res.ok) throw new Error(data.error || "Could not load jobs");
       if (data.opportunities && data.opportunities.length > 0) {
         setOpportunities(data.opportunities);
       } else {
         setOpportunities([]);
       }
-    } catch (err) {
-      console.error("Failed to load opportunities:", err);
+    } catch (err: any) {
+      setNotification({ message: err.message || "Could not load jobs.", type: "info" });
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    fetch("/api/profile").then(r => r.json()).then(d => setUserEmail(d.user?.email || ""));
+    fetchLiveOpportunities();
+  }, [fetchLiveOpportunities]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +66,7 @@ export default function DashboardPage() {
 
   const handleScan = async () => {
     setDiscovering(true);
-    setNotification({ message: "Checking live Remotive and GitHub listings...", type: "info" });
+    setNotification({ message: "Checking published Remotive, Jobicy, and GitHub listings...", type: "info" });
     try {
       const res = await fetch("/api/discover", { method: "POST" });
       const data = await res.json();
@@ -265,6 +267,14 @@ export default function DashboardPage() {
           <Link href="/discover" className="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
             View All in Discover →
           </Link>
+        </div>
+        <div className="flex flex-wrap gap-3 text-sm">
+          <label>Show <select aria-label="Filter jobs" value={selectedFilter} onChange={e => setSelectedFilter(e.target.value as typeof selectedFilter)} className="ml-2 border rounded-lg p-2 bg-white">
+            <option value="all">All jobs</option><option value="high_match">90%+ fit</option><option value="remote">Remote</option><option value="freelance">Freelance</option><option value="contract">Contract</option>
+          </select></label>
+          <label>Sort <select aria-label="Sort jobs" value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)} className="ml-2 border rounded-lg p-2 bg-white">
+            <option value="match">Best fit</option><option value="compensation">Pay stated</option><option value="title">Job title</option>
+          </select></label>
         </div>
 
         {loading ? (

@@ -26,6 +26,7 @@ function DiscoverContent() {
       try {
         const res = await fetch("/api/opportunities");
         const data = await res.json();
+        if (res.status === 401) { router.push("/login"); return; }
         if (!res.ok) throw new Error(data.error || "Could not load jobs");
         setOpportunities(data.opportunities || []);
       } catch (err) {
@@ -35,7 +36,7 @@ function DiscoverContent() {
       }
     }
     loadOpportunities();
-  }, []);
+  }, [router]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +71,7 @@ function DiscoverContent() {
             Discover Opportunities 🧭
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 mt-1">
-            Browse published listings from Remotive and GitHub. Check geographic eligibility before applying.
+            Browse published listings from Remotive, Jobicy, and GitHub. Check geographic eligibility before applying.
           </p>
         </div>
         <Link href="/dashboard" className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">

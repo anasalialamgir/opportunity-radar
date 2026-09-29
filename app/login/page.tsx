@@ -20,5 +20,5 @@ export default function LoginPage() {
       <label className="block text-sm font-medium">Password<input type="password" required autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} className="block w-full mt-2 p-3 border rounded-lg" /></label>
       {error && <p role="alert" className="text-red-700 text-sm">{error}</p>}
       <button disabled={loading} className="w-full p-3 rounded-lg bg-indigo-600 text-white font-semibold disabled:opacity-50">{loading ? "Logging in..." : "Log in"}</button>
-    </form><p className="mt-5 text-sm">New here? <Link href="/signup" className="text-indigo-700 font-semibold">Create an account</Link></p></div>;
+    </form><p className="mt-3 text-sm"><Link href="/forgot-password" className="text-indigo-700">Forgot password?</Link></p><p className="mt-5 text-sm">New here? <Link href="/signup" className="text-indigo-700 font-semibold">Create an account</Link></p></div>;
 }

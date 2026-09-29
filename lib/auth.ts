@@ -30,9 +30,15 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    async jwt({ token, user }) {
+      if (user) token.sessionVersion = (user as any).sessionVersion || 0;
+      return token;
+    },
     async session({ session, token }) {
       if (token && session.user) {
-        (session.user as any).id = token.sub;
+        const user = token.sub && await prisma.user.findUnique({ where: { id: token.sub }, select: { sessionVersion: true } });
+        if (user && user.sessionVersion === (token.sessionVersion ?? 0)) (session.user as any).id = token.sub;
+        else session.user = undefined as any;
       }
       return session;
     },

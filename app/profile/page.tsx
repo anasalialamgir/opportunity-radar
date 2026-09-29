@@ -22,11 +22,13 @@ export default function ProfilePage() {
   });
 
   const [status, setStatus] = useState<string | null>(null);
+  const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetch("/api/profile").then(r => r.json()).then(({ user, profile }) => {
       if (!user) return;
+      setEmailVerified(user.emailVerified);
       setFormData(prev => ({ ...prev, name: user.name || "", email: user.email || "",
         country: profile?.country || "", timeZone: profile?.timeZone || "",
         locationPreference: profile?.locationPreference || "remote",
@@ -79,6 +81,12 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      {emailVerified === false && <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-sm text-amber-900">
+        Verify your email to receive alerts. <button type="button" className="underline font-semibold" onClick={async () => {
+          const res = await fetch("/api/account/resend-verification", { method: "POST" }); const data = await res.json();
+          setStatus(res.ok ? "Verification link sent. Check your inbox." : `Error: ${data.error}`);
+        }}>Send verification link</button>
+      </div>}
       {/* Upload Resume Shortcut Card */}
       <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-5 rounded-2xl border border-indigo-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -192,7 +200,7 @@ export default function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Min Acceptable ($)</label>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Minimum Monthly (USD)</label>
               <input
                 type="number"
                 name="minimumCompensation"

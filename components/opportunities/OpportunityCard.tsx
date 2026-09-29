@@ -14,6 +14,7 @@ export interface CardOpportunityProps {
   minCompensation?: number;
   maxCompensation?: number;
   currency?: string;
+  compensationPeriod?: string;
   source: string;
   matchScore?: number | null;
   reasons?: string[];
@@ -32,6 +33,7 @@ export function OpportunityCard({
   minCompensation,
   maxCompensation,
   currency = "USD",
+  compensationPeriod,
   source,
   matchScore,
   reasons = [],
@@ -41,10 +43,10 @@ export function OpportunityCard({
 }: CardOpportunityProps) {
   const compDisplay =
     minCompensation && maxCompensation
-      ? `$${minCompensation} – $${maxCompensation}`
+      ? `${currency} ${minCompensation.toLocaleString()} – ${maxCompensation.toLocaleString()}`
       : minCompensation
-      ? `From $${minCompensation}`
-      : "Flexible / Unstated";
+      ? `From ${currency} ${minCompensation.toLocaleString()}`
+      : "Pay not stated";
 
   // Evaluate safety and scam risks in real-time
   const safety = evaluateOpportunitySafety(title, description);
@@ -91,7 +93,7 @@ export function OpportunityCard({
             {remote ? "🌐 Remote" : "📍 Local / On-site"}
           </span>
           <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-semibold border border-emerald-200">
-            💵 {compDisplay}
+            💵 {compDisplay}{compensationPeriod && compensationPeriod !== "unspecified" ? ` / ${compensationPeriod}` : ""}
           </span>
         </div>
 

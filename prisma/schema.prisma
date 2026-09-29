@@ -52,6 +52,7 @@ model User {
   name          String?
   email         String?   @unique
   emailVerified DateTime?
+  sessionVersion Int       @default(0)
   image         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -63,6 +64,10 @@ model User {
   applications       Application[]
   matches            OpportunityMatch[]
   notifications      Notification[]
+  alertRules         AlertRule[]
+  alertDeliveries    AlertDelivery[]
+  passwordResets     PasswordResetToken[]
+  verificationTokens EmailVerificationToken[]
 }
 
 // -------------------------------------------------------------
@@ -173,6 +178,7 @@ model Opportunity {
   matches            OpportunityMatch[]
   savedOpportunities SavedOpportunity[]
   applications       Application[]
+  alertDeliveries    AlertDelivery[]
 }
 
 model OpportunityMatch {
@@ -228,4 +234,49 @@ model Notification {
   read      Boolean  @default(false)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AlertRule {
+  id           String   @id @default(cuid())
+  userId       String
+  keyword      String
+  minimumScore Int      @default(60)
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, enabled])
+}
+
+model AlertDelivery {
+  id            String      @id @default(cuid())
+  userId        String
+  opportunityId String
+  deliveredAt   DateTime    @default(now())
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, opportunityId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

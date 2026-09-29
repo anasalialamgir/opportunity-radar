@@ -8,7 +8,7 @@ export async function GET() {
   const id = await currentUserId();
   if (!id) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
   const user = await prisma.user.findUnique({ where: { id }, include: { profile: { include: { skills: true, experiences: true, userCapabilities: true } } } });
-  return NextResponse.json({ user: { name: user?.name, email: user?.email }, profile: user?.profile });
+  return NextResponse.json({ user: { name: user?.name, email: user?.email, emailVerified: !!user?.emailVerified }, profile: user?.profile });
 }
 export async function POST(req: Request) {
   const userId = await currentUserId();

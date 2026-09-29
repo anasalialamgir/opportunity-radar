@@ -1,10 +1,10 @@
 export interface MatchProfile {
   skills: string[]; capabilities: string[]; experienceTitles?: string[]; targetRoles?: string[];
-  country?: string; locationPreference?: string; hoursPerWeek?: number; minimumCompensation?: number;
+  country?: string; locationPreference?: string; hoursPerWeek?: number; minimumCompensation?: number; currency?: string;
 }
 export interface MatchOpportunity {
   id: string; title: string; description: string; remote: boolean; location?: string | null;
-  skills?: string[]; minCompensation?: number | null; maxCompensation?: number | null;
+  skills?: string[]; minCompensation?: number | null; maxCompensation?: number | null; currency?: string | null; compensationPeriod?: string | null;
 }
 export interface MatchResult { score: number; reasons: string[]; concerns: string[]; }
 const terms = (s: string) => s.toLowerCase().replace(/[^a-z0-9+#. ]/g, " ").replace(/\s+/g, " ").trim();
@@ -38,8 +38,10 @@ export function computeOpportunityMatch(opp: MatchOpportunity, profile: MatchPro
       score -= 15; concerns.push(`Check location eligibility: ${opp.location}.`);
     } else { score += 5; reasons.push("Remote preference aligns."); }
   }
-  if (profile.minimumCompensation && opp.maxCompensation != null && opp.maxCompensation < profile.minimumCompensation) {
-    score -= 15; concerns.push("Listed compensation may be below your minimum; compare periods and currencies.");
+  const period = (opp.compensationPeriod || "").toLowerCase();
+  const monthlyMax = period.includes("year") ? (opp.maxCompensation || 0) / 12 : period.includes("month") ? opp.maxCompensation : null;
+  if (profile.minimumCompensation && monthlyMax != null && (profile.currency || "USD") === opp.currency && monthlyMax < profile.minimumCompensation) {
+    score -= 15; concerns.push("Listed monthly equivalent appears below your minimum.");
   }
   return { score: Math.max(0, Math.min(99, score)), reasons, concerns };
 }
