@@ -42,19 +42,9 @@ USER BACKGROUND:
 ${userProfileSummary}
 `;
 
-  try {
     return await provider.structuredOutput<OpportunityAssistance>({
       prompt,
       systemPrompt: "You assist users in reviewing opportunities. Return only JSON.",
       temperature: 0.3,
     });
-  } catch (error) {
-    return {
-      summary: `Opportunity for ${opportunityTitle}.`,
-      fitExplanation: "Matches your stated experience and availability.",
-      missingRequirements: ["Verify any domain-specific requirements directly with client."],
-      preparationAdvice: ["Review portfolio links", "Tailor your sample work"],
-      suggestedApplicationDraft: `Hi,\n\nI saw your listing for "${opportunityTitle}" and believe my experience matches your requirements. I'd be glad to discuss how I can help.\n\nBest regards,`,
-    };
-  }
 }

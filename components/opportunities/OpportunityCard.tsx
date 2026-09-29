@@ -15,7 +15,7 @@ export interface CardOpportunityProps {
   maxCompensation?: number;
   currency?: string;
   source: string;
-  matchScore?: number;
+  matchScore?: number | null;
   reasons?: string[];
   onSave?: (id: string) => void;
   onDismiss?: (id: string) => void;
@@ -33,7 +33,7 @@ export function OpportunityCard({
   maxCompensation,
   currency = "USD",
   source,
-  matchScore = 85,
+  matchScore,
   reasons = [],
   onSave,
   onDismiss,
@@ -63,7 +63,7 @@ export function OpportunityCard({
             </p>
           </div>
 
-          <span
+          {matchScore != null && <span
             className={`shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-bold ${
               matchScore >= 90
                 ? "bg-emerald-100 text-emerald-800"
@@ -73,7 +73,7 @@ export function OpportunityCard({
             }`}
           >
             {matchScore}% match
-          </span>
+          </span>}
         </div>
 
         {/* Safety Warnings if detected */}

@@ -4,20 +4,26 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma db push --accept-data-loss && prisma generate && next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint . --ext .ts,.tsx",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push"
+    "prisma:push": "prisma db push",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "db:deploy": "prisma migrate deploy",
+    "db:dev": "prisma migrate dev",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",
     "@prisma/client": "^5.22.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.460.0",
+    "mammoth": "^1.10.0",
     "next": "^14.2.18",
     "next-auth": "^4.24.10",
+    "pdf-parse": "^1.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^2.5.4"
@@ -30,6 +36,9 @@
     "postcss": "^8.4.49",
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.15",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "tsx": "^4.20.0",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "14.2.18"
   }
 }

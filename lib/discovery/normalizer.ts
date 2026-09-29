@@ -34,8 +34,8 @@ export function normalizeOpportunity(raw: RawOpportunity): NormalizedOpportunity
   // Simple number extraction from raw compensation string
   let minComp: number | undefined;
   let maxComp: number | undefined;
-  if (raw.rawCompensation) {
-    const numbers = raw.rawCompensation.match(/\d+/g);
+  if (raw.rawCompensation && /\$|\bUSD\b/i.test(raw.rawCompensation)) {
+    const numbers = raw.rawCompensation.replace(/,(?=\d{3}\b)/g, "").match(/\d+(?:\.\d+)?/g);
     if (numbers && numbers.length >= 2) {
       minComp = parseFloat(numbers[0]);
       maxComp = parseFloat(numbers[1]);
@@ -53,16 +53,16 @@ export function normalizeOpportunity(raw: RawOpportunity): NormalizedOpportunity
     category,
     source: raw.sourceName || "Unknown",
     sourceUrl: raw.sourceUrl,
-    company: raw.company || "Independent Client",
+    company: raw.company || undefined,
     location: raw.location || (isRemote ? "Remote" : "Unspecified"),
     remote: isRemote,
     minCompensation: minComp,
     maxCompensation: maxComp,
     currency: "USD",
-    compensationPeriod: "project",
+    compensationPeriod: "unspecified",
     requirements: [],
     skills: [],
-    publishedAt: raw.publishedAt ? new Date(raw.publishedAt) : new Date(),
+    publishedAt: raw.publishedAt && !isNaN(new Date(raw.publishedAt).valueOf()) ? new Date(raw.publishedAt) : undefined,
     discoveredAt: new Date(),
     verificationStatus: "source_confirmed",
     rawData: raw.rawData || {},

@@ -11,28 +11,33 @@ export default function ProfilePage() {
     timeZone: "",
     locationPreference: "remote",
     hoursPerWeek: "20",
-    targetMonthlyIncome: "1000",
-    minimumCompensation: "100",
+    targetMonthlyIncome: "",
+    minimumCompensation: "",
     currency: "USD",
-    employmentPreferences: ["Freelance", "Contract"],
-    languages: "English",
-    skills: "Communication, Research",
-    capabilities: "I can edit videos, I can translate English and Urdu",
+    employmentPreferences: ["Full-time"],
+    languages: "",
+    skills: "",
+    targetRoles: "",
+    capabilities: "",
   });
 
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const savedEmail = localStorage.getItem("opportunity_radar_user_email");
-    const savedName = localStorage.getItem("opportunity_radar_user_name");
-    if (savedEmail) {
-      setFormData((prev) => ({
-        ...prev,
-        email: savedEmail,
-        name: savedName || prev.name,
+    fetch("/api/profile").then(r => r.json()).then(({ user, profile }) => {
+      if (!user) return;
+      setFormData(prev => ({ ...prev, name: user.name || "", email: user.email || "",
+        country: profile?.country || "", timeZone: profile?.timeZone || "",
+        locationPreference: profile?.locationPreference || "remote",
+        hoursPerWeek: String(profile?.hoursPerWeek ?? 20), targetMonthlyIncome: String(profile?.targetMonthlyIncome ?? ""),
+        minimumCompensation: String(profile?.minimumCompensation ?? ""), currency: profile?.currency || "USD",
+        employmentPreferences: profile?.employmentPreferences || ["Full-time"],
+        languages: (profile?.languages || []).join(", "), skills: (profile?.skills || []).map((s: any) => s.name).join(", "),
+        targetRoles: (profile?.targetRoles || []).join(", "),
+        capabilities: (profile?.userCapabilities || []).map((c: any) => c.description).join(", "),
       }));
-    }
+    }).catch(() => setStatus("Error: Please log in to edit your profile."));
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -49,6 +54,7 @@ export default function ProfilePage() {
         ...formData,
         languages: formData.languages.split(",").map((s) => s.trim()),
         skills: formData.skills.split(",").map((s) => s.trim()),
+        targetRoles: formData.targetRoles.split(",").map((s) => s.trim()),
         capabilities: formData.capabilities.split(",").map((s) => s.trim()),
       };
 
@@ -60,8 +66,6 @@ export default function ProfilePage() {
 
       const data = await res.json();
       if (res.ok) {
-        localStorage.setItem("opportunity_radar_user_email", formData.email);
-        localStorage.setItem("opportunity_radar_user_name", formData.name);
         setStatus("Profile saved successfully! Ready for discovery.");
       } else {
         setStatus(`Error: ${data.error || "Failed to save"}`);
@@ -130,7 +134,7 @@ export default function ProfilePage() {
                 onChange={handleChange}
                 placeholder="user@example.com"
                 className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-indigo-500"
-                required
+                readOnly
               />
             </div>
           </div>
@@ -223,12 +227,20 @@ export default function ProfilePage() {
             />
           </div>
 
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Which roles do you want next? (comma-separated)</label>
+            <input type="text" name="targetRoles" value={formData.targetRoles} onChange={handleChange}
+              placeholder="e.g. Data Analyst, Product Manager, Regulatory Affairs Specialist"
+              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-indigo-500" />
+            <p className="text-xs text-slate-500 mt-1">These goals help prioritize jobs beyond your past job titles.</p>
+          </div>
+
           <div className="bg-indigo-50/60 p-4 rounded-xl border border-indigo-100">
             <label className="block text-sm font-semibold text-indigo-950 mb-1">
-              What else can you do that isn't on your CV?
+              What else can you do that isn&apos;t on your CV?
             </label>
             <p className="text-xs text-indigo-700 mb-2">
-              Add real practical capabilities (e.g. "I can translate Urdu/English, I can edit short videos, I understand cars").
+              Add real practical capabilities (e.g. &quot;I can translate Urdu/English, I can edit short videos, I understand cars&quot;).
             </p>
             <textarea
               name="capabilities"

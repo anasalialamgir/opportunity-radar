@@ -48,6 +48,7 @@ model VerificationToken {
 
 model User {
   id            String    @id @default(cuid())
+  passwordHash  String?
   name          String?
   email         String?   @unique
   emailVerified DateTime?
@@ -79,6 +80,7 @@ model Profile {
   minimumCompensation     Float?
   currency                String   @default("USD")
   employmentPreferences   String[] // Full-time, Part-time, Freelance, Contract, Gig, Business
+  targetRoles             String[] // Job titles the seeker wants next
   languages               String[]
   rawCvText               String?  @db.Text
   createdAt               DateTime @default(now())

@@ -6,6 +6,7 @@ import { StructuredCV } from "@/lib/ai/types";
 
 export default function CVUploadPage() {
   const [cvText, setCvText] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [parsed, setParsed] = useState<StructuredCV | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -14,16 +15,13 @@ export default function CVUploadPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      setCvText(content || "");
-    };
-    reader.readAsText(file);
+    setFile(file);
+    if (/\.(txt|md)$/i.test(file.name)) file.text().then(setCvText);
+    else setCvText("");
   };
 
   const handleParse = async () => {
-    if (!cvText.trim()) {
+    if (!cvText.trim() && !file) {
       setMessage("Please upload or paste your CV text first.");
       return;
     }
@@ -32,16 +30,13 @@ export default function CVUploadPage() {
     setMessage(null);
 
     try {
-      const res = await fetch("/api/cv/parse", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawText: cvText }),
-      });
+      const body = file && !cvText.trim() ? (() => { const form = new FormData(); form.append("file", file); return form; })() : JSON.stringify({ rawText: cvText });
+      const res = await fetch("/api/cv/parse", { method: "POST", headers: typeof body === "string" ? { "Content-Type": "application/json" } : undefined, body });
 
       const json = await res.json();
       if (res.ok) {
         setParsed(json.data);
-        setMessage("CV parsed successfully! Review the extracted data below.");
+        setMessage("CV saved to your profile. Review your skills and preferences next.");
       } else {
         setMessage(`Error: ${json.error}`);
       }
@@ -69,11 +64,11 @@ export default function CVUploadPage() {
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-              Upload CV File (.txt, .md)
+              Upload CV File (.pdf, .docx, .txt, .md; 5 MB max)
             </label>
             <input
               type="file"
-              accept=".txt,.md"
+              accept=".pdf,.docx,.txt,.md"
               onChange={handleFileUpload}
               className="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
             />
@@ -151,7 +146,7 @@ export default function CVUploadPage() {
               href="/profile"
               className="inline-block w-full text-center py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition"
             >
-              Confirm & Return to Profile
+              Continue to your preferences →
             </Link>
           </div>
         </div>

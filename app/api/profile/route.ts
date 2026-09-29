@@ -1,92 +1,42 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { currentUserId } from "@/lib/current-user";
 
+const list = (value: unknown) => Array.isArray(value) ? value.filter((s): s is string => typeof s === "string" && !!s.trim()).map(s => s.trim().slice(0, 150)).slice(0, 80) : [];
+const num = (value: unknown) => value === "" || value == null ? null : Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : null;
+export async function GET() {
+  const id = await currentUserId();
+  if (!id) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+  const user = await prisma.user.findUnique({ where: { id }, include: { profile: { include: { skills: true, experiences: true, userCapabilities: true } } } });
+  return NextResponse.json({ user: { name: user?.name, email: user?.email }, profile: user?.profile });
+}
 export async function POST(req: Request) {
+  const userId = await currentUserId();
+  if (!userId) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
   try {
     const data = await req.json();
-    const {
-      email,
-      name,
-      country,
-      timeZone,
-      locationPreference,
-      hoursPerWeek,
-      targetMonthlyIncome,
-      minimumCompensation,
-      currency,
-      employmentPreferences,
-      languages,
-      capabilities, // strings from "What else can you do?"
-      skills,       // array of skill names
-    } = data;
-
-    if (!email) {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 });
-    }
-
-    // Upsert User
-    const user = await prisma.user.upsert({
-      where: { email },
-      update: { name: name || undefined },
-      create: { email, name: name || "Explorer" },
+    const profile = await prisma.$transaction(async tx => {
+      if (typeof data.name === "string") await tx.user.update({ where: { id: userId }, data: { name: data.name.trim().slice(0, 120) } });
+      const p = await tx.profile.upsert({ where: { userId }, create: { userId }, update: {} });
+      await tx.profile.update({ where: { id: p.id }, data: {
+        country: typeof data.country === "string" ? data.country.slice(0, 100) : undefined,
+        timeZone: typeof data.timeZone === "string" ? data.timeZone.slice(0, 100) : undefined,
+        locationPreference: ["remote", "hybrid", "local", "any"].includes(data.locationPreference) ? data.locationPreference : "any",
+        hoursPerWeek: num(data.hoursPerWeek), targetMonthlyIncome: num(data.targetMonthlyIncome), minimumCompensation: num(data.minimumCompensation),
+        currency: typeof data.currency === "string" ? data.currency.slice(0, 3).toUpperCase() : "USD",
+        employmentPreferences: list(data.employmentPreferences), targetRoles: list(data.targetRoles), languages: list(data.languages),
+      } });
+      if (Array.isArray(data.capabilities)) {
+        await tx.userCapability.deleteMany({ where: { profileId: p.id } });
+        if (list(data.capabilities).length) await tx.userCapability.createMany({ data: list(data.capabilities).map(description => ({ profileId: p.id, description })) });
+      }
+      if (Array.isArray(data.skills)) {
+        await tx.skill.deleteMany({ where: { profileId: p.id } });
+        if (list(data.skills).length) await tx.skill.createMany({ data: list(data.skills).map(name => ({ profileId: p.id, name })) });
+      }
+      await tx.opportunityMatch.deleteMany({ where: { userId } });
+      return p;
     });
-
-    // Upsert Profile
-    const profile = await prisma.profile.upsert({
-      where: { userId: user.id },
-      update: {
-        country,
-        timeZone,
-        locationPreference,
-        hoursPerWeek: hoursPerWeek ? parseInt(hoursPerWeek) : undefined,
-        targetMonthlyIncome: targetMonthlyIncome ? parseFloat(targetMonthlyIncome) : undefined,
-        minimumCompensation: minimumCompensation ? parseFloat(minimumCompensation) : undefined,
-        currency: currency || "USD",
-        employmentPreferences: employmentPreferences || [],
-        languages: languages || [],
-      },
-      create: {
-        userId: user.id,
-        country,
-        timeZone,
-        locationPreference,
-        hoursPerWeek: hoursPerWeek ? parseInt(hoursPerWeek) : 40,
-        targetMonthlyIncome: targetMonthlyIncome ? parseFloat(targetMonthlyIncome) : null,
-        minimumCompensation: minimumCompensation ? parseFloat(minimumCompensation) : null,
-        currency: currency || "USD",
-        employmentPreferences: employmentPreferences || [],
-        languages: languages || [],
-      },
-    });
-
-    // Add user capabilities ("What else can you do?")
-    if (Array.isArray(capabilities) && capabilities.length > 0) {
-      await prisma.userCapability.deleteMany({ where: { profileId: profile.id } });
-      await prisma.userCapability.createMany({
-        data: capabilities
-          .filter((c: string) => c.trim().length > 0)
-          .map((c: string) => ({
-            profileId: profile.id,
-            description: c.trim(),
-          })),
-      });
-    }
-
-    // Add basic skills if provided
-    if (Array.isArray(skills) && skills.length > 0) {
-      await prisma.skill.deleteMany({ where: { profileId: profile.id } });
-      await prisma.skill.createMany({
-        data: skills
-          .filter((s: string) => s.trim().length > 0)
-          .map((s: string) => ({
-            profileId: profile.id,
-            name: s.trim(),
-          })),
-      });
-    }
-
     return NextResponse.json({ success: true, profileId: profile.id });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  } catch { return NextResponse.json({ error: "Could not save profile." }, { status: 400 }); }
 }

@@ -1,34 +1,30 @@
-version: "3.8"
-
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: opportunity_radar_app
+    build: .
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=postgresql://radar:radar_secure_pass@db:5432/opportunity_radar?schema=public
-      - NEXTAUTH_SECRET=super_secret_production_key_32_characters_minimum
-      - NEXTAUTH_URL=http://localhost:3000
-      - AI_PROVIDER=fallback
+      DATABASE_URL: postgresql://radar:${POSTGRES_PASSWORD}@db:5432/opportunity_radar?schema=public
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
     depends_on:
-      - db
-    restart: always
-
+      db:
+        condition: service_healthy
   db:
     image: postgres:16-alpine
-    container_name: opportunity_radar_db
     environment:
       POSTGRES_USER: radar
-      POSTGRES_PASSWORD: radar_secure_pass
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: opportunity_radar
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    restart: always
-
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U radar -d opportunity_radar"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 volumes:
   postgres_data:

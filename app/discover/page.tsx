@@ -26,48 +26,8 @@ function DiscoverContent() {
       try {
         const res = await fetch("/api/opportunities");
         const data = await res.json();
-        if (data.opportunities && data.opportunities.length > 0) {
-          setOpportunities(data.opportunities);
-        } else {
-          setOpportunities([
-            {
-              id: "demo-opp-1",
-              title: "Short-Form Video & Tutorial Editor",
-              company: "EduMedia Creators",
-              category: "freelance",
-              remote: true,
-              minCompensation: 150,
-              maxCompensation: 300,
-              source: "Reddit",
-              matchScore: 94,
-              reasons: ["✓ Video editing matches capability", "✓ Remote fits preference"],
-            },
-            {
-              id: "demo-opp-2",
-              title: "Python Data Pipeline & Automation",
-              company: "OpenCore Foundation",
-              category: "contract",
-              remote: true,
-              minCompensation: 500,
-              maxCompensation: 1000,
-              source: "GitHub",
-              matchScore: 91,
-              reasons: ["✓ Python automation matches skills", "✓ Meets hourly threshold"],
-            },
-            {
-              id: "demo-opp-3",
-              title: "Data Analysis & Spreadsheet Modeler",
-              company: "FinTech Ventures",
-              category: "freelance",
-              remote: true,
-              minCompensation: 800,
-              maxCompensation: 1200,
-              source: "RSS / Tech Feeds",
-              matchScore: 87,
-              reasons: ["✓ Excel & Data analysis required"],
-            },
-          ]);
-        }
+        if (!res.ok) throw new Error(data.error || "Could not load jobs");
+        setOpportunities(data.opportunities || []);
       } catch (err) {
         console.error("Failed to load opportunities", err);
       } finally {
@@ -110,7 +70,7 @@ function DiscoverContent() {
             Discover Opportunities 🧭
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 mt-1">
-            Explore verified opportunities across RSS feeds, Reddit, and GitHub.
+            Browse published listings from Remotive and GitHub. Check geographic eligibility before applying.
           </p>
         </div>
         <Link href="/dashboard" className="text-xs font-semibold text-indigo-600 hover:text-indigo-700">
